@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-on-background font-body;
+    font-family: 'Be Vietnam Pro', sans-serif;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-headline {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
+}
+
+/* Cozy custom scrollbar for the horizontal board */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c2c8c2;
+  border-radius: 10px;
+}
+
+/* vuedraggable helpers */
+.drag-ghost {
+  opacity: 0.4;
+}
+.drag-chosen {
+  cursor: grabbing;
+}

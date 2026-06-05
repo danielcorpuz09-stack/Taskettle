@@ -1,0 +1,205 @@
+export type Role = 'OWNER' | 'MEMBER';
+export type TaskStatus = 'TODO' | 'DOING' | 'DONE';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type NotificationType = 'DUE_SOON' | 'OVERDUE' | 'DEBT_DUE_SOON' | 'DEBT_OVERDUE';
+export type InventoryStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+export type ShoppingItemStatus = 'PENDING' | 'PURCHASED';
+export type WalletAccountType = 'CASH' | 'BANK' | 'CARD' | 'SAVINGS' | 'OTHER';
+export type WalletCategoryType = 'INCOME' | 'EXPENSE';
+export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_PAYMENT';
+export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
+export type DebtStatus = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatarColor: string;
+}
+
+export interface CircleSummary {
+  id: string;
+  name: string;
+  icon: string;
+  role: Role;
+  memberCount: number;
+}
+
+export interface Member {
+  userId: string;
+  name: string;
+  email: string;
+  avatarColor: string;
+  role: Role;
+}
+
+export interface TaskAssignee {
+  userId: string;
+  name: string;
+  avatarColor: string;
+}
+
+export interface Task {
+  id: string;
+  circleId: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  category: string | null;
+  assignee: TaskAssignee | null;
+  dueDate: string | null;
+  position: number;
+  createdById: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  message: string;
+  taskId: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  circleId: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  quantity: number;
+  unit: string | null;
+  minimumThreshold: number;
+  location: string | null;
+  notes: string | null;
+  status: InventoryStatus;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShoppingListItem {
+  id: string;
+  circleId: string;
+  inventoryItemId: string | null;
+  name: string;
+  quantityNeeded: number;
+  unit: string | null;
+  status: ShoppingItemStatus;
+  addedById: string;
+  purchasedById: string | null;
+  purchasedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventoryDashboard {
+  totalCount: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  recentlyUpdated: InventoryItem[];
+}
+
+export interface WalletAccount {
+  id: string;
+  circleId: string;
+  name: string;
+  type: WalletAccountType;
+  currency: string;
+  ownerId: string | null;
+  balanceMinor: number;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WalletCategory {
+  id: string;
+  circleId: string;
+  name: string;
+  type: WalletCategoryType;
+  color: string;
+  icon: string;
+  createdAt: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  circleId: string;
+  accountId: string;
+  type: TransactionType;
+  amountMinor: number;
+  currency: string;
+  categoryId: string | null;
+  note: string | null;
+  payee: string | null;
+  transactionDate: string;
+  createdById: string;
+  debtId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Budget {
+  id: string;
+  circleId: string;
+  name: string;
+  categoryId: string | null;
+  amountMinor: number;
+  currency: string;
+  period: BudgetPeriod;
+  startsAt: string;
+  endsAt: string | null;
+  spentMinor: number;
+  remainingMinor: number;
+  createdById: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DebtPayment {
+  id: string;
+  debtId: string;
+  amountMinor: number;
+  currency: string;
+  paidById: string;
+  paidToId: string;
+  paidAt: string;
+  createdAt: string;
+}
+
+export interface Debt {
+  id: string;
+  circleId: string;
+  lenderId: string;
+  borrowerId: string;
+  amountMinor: number;
+  paidMinor: number;
+  remainingMinor: number;
+  currency: string;
+  reason: string | null;
+  dueDate: string | null;
+  status: DebtStatus;
+  createdById: string;
+  paidAt: string | null;
+  payments: DebtPayment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WalletDashboard {
+  currency: string;
+  incomeMinor: number;
+  expenseMinor: number;
+  netMinor: number;
+  accountsBalanceMinor: number;
+  owedToMeMinor: number;
+  owedByMeMinor: number;
+  openDebtCount: number;
+  overdueDebtCount: number;
+}
