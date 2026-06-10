@@ -1,0 +1,24 @@
+{
+  "name": "taskettle",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Taskettle — cozy, family-friendly task coordination. Monorepo root.",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:server dev:web",
+    "dev:server": "npm run dev --workspace @taskettle/server",
+    "dev:web": "npm run dev --workspace @taskettle/web",
+    "build": "npm run build --workspace @taskettle/server && npm run build --workspace @taskettle/web",
+    "db:migrate": "npm run db:migrate --workspace @taskettle/server",
+    "db:seed": "npm run db:seed --workspace @taskettle/server",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}
