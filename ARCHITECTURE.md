@@ -80,8 +80,50 @@ post-MVP swap behind the same notification table.
 | Nuxt / SSR | Plain Vite SPA. SEO irrelevant for a private app. |
 | Microservices | Single modular monolith. Split later only if needed. |
 
-## 8. Extensibility seams
+## 8. Current household modules
 
-- New domain = new `modules/<x>` folder + Prisma model + Pinia store + route.
-- Notifications table is generic (`type`) → reuse for calendar/medicine alerts.
-- Circle membership is the universal tenancy boundary all future modules share.
+Three production-ready modules extend the core task board:
+
+### Inventory (`src/modules/inventory`)
+Tracks household items with stock levels and categories.
+- **Models:** `InventoryItem` (name, category, quantity, unit, threshold, location, status)
+- **Status calculation:** auto-derived from qty vs. threshold (In Stock / Low Stock / Out of Stock)
+- **Key features:** dashboard with summaries, filter by category/status, search, link to shopping list
+- **Bridge:** "add to shopping list" action on inventory items
+
+### Shopping List (`src/modules/shopping-list`)
+Collaborative grocery/supply list with purchase tracking.
+- **Models:** `ShoppingListItem` (name, quantity, unit, status, optional link to inventory item)
+- **Status:** `PENDING → PURCHASED`
+- **Key features:** add manually or from inventory, toggle purchased, delete items, empty state
+- **Dedupe:** optional link to `InventoryItem` for bulk operations
+
+### Wallet (`src/modules/wallet`)
+Household expense sharing: accounts, transactions, budgets, and debts.
+- **Models:** `WalletAccount` (type: CASH/BANK/CARD/etc), `WalletCategory` (INCOME/EXPENSE),
+  `WalletTransaction` (tracks flows), `Budget` (weekly/monthly/custom), `Debt` with `DebtPayment`
+- **Key features:** dashboard with balance/income/expense summaries, transaction filtering,
+  budget tracking, debt reconciliation with payment history
+- **Design:** balances computed server-side to prevent tampering; all amounts in minor units (cents)
+
+All three modules:
+- Follow the same `route → controller → service → prisma` layering
+- Use Circle as the tenancy boundary (all queries filtered by `circleId`)
+- Include full CRUD API + Pinia store + Vue components
+- Are independently deployable; can be archived/disabled without touching tasks
+
+## 9. How to add a Post-MVP module
+
+Pattern (see inventory/wallet/shopping-list as templates):
+
+1. **Prisma model** in `schema.prisma` with `circleId` relation
+2. **Backend module:** create `apps/server/src/modules/<name>/` with:
+   - `*.schema.ts` (Zod validation)
+   - `*.service.ts` (business logic)
+   - `*.controller.ts` (HTTP + status codes)
+   - `*.routes.ts` (route definitions)
+3. **Frontend store** in `apps/web/src/stores/<name>.ts` with API calls
+4. **Vue components** in `apps/web/src/components/` and views as needed
+5. **Documentation:** update `docs/API.md` (endpoint contract) and `SCHEMA.md` (models)
+
+## 10. Why these choices (and what we said no to)

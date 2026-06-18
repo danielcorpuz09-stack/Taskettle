@@ -82,6 +82,7 @@ Task shape:
 ```json
 { "id": "...", "circleId": "...", "title": "Water the garden",
   "description": "Back beds + herbs", "status": "TODO|DOING|DONE",
+  "priority": "LOW|MEDIUM|HIGH|URGENT"|null, "category": "Chores|Errands|..."|null,
   "assignee": { "userId": "...", "name": "...", "avatarColor": "..." } | null,
   "dueDate": "ISO" | null, "position": 1024,
   "createdById": "...", "completedAt": "ISO" | null,
@@ -93,7 +94,8 @@ Task shape:
 ### POST /circles/:circleId/tasks
 ```json
 // req { "title": "Water the garden", "description": "...",
-//       "assigneeId": "..."|null, "dueDate": "ISO"|null }
+//       "assigneeId": "..."|null, "dueDate": "ISO"|null,
+//       "priority": "LOW|MEDIUM|HIGH|URGENT"|null, "category": "..."|null }
 // 201 { "task": Task }   // status defaults to TODO
 ```
 
@@ -101,6 +103,7 @@ Task shape:
 ```json
 // req (any subset)
 { "title": "...", "description": "...", "status": "DOING",
+  "priority": "HIGH", "category": "Errands",
   "assigneeId": "..."|null, "dueDate": "ISO"|null, "position": 2048 }
 // 200 { "task": Task }
 ```
@@ -119,3 +122,108 @@ Task shape:
 ### GET /notifications → `{ "notifications": [Notification], "unread": 2 }`
 ### PATCH /notifications/:id/read → `200 { "notification": { ...read:true } }`
 ### POST /notifications/read-all → `200 { "updated": 5 }`
+
+---
+
+## Inventory
+
+### GET /circles/:circleId/inventory → `{ "items": [InventoryItem] }`
+
+### POST /circles/:circleId/inventory
+```json
+// req { "name": "Milk", "category": "Groceries", "quantity": 2, "unit": "gallons", "threshold": 1 }
+// 201 { "item": { "id": "...", "name": "...", "status": "IN_STOCK", ... } }
+```
+
+### PATCH /inventory/:itemId
+```json
+// req (any subset) { "quantity": 1, "category": "...", ... }
+// 200 { "item": { ... } }
+```
+
+### DELETE /inventory/:itemId → `204`
+
+### POST /circles/:circleId/inventory/add-to-shopping
+```json
+// req { "inventoryItemId": "...", "quantity": 1 }
+// 201 { "shoppingItem": { ... } }
+```
+
+### GET /circles/:circleId/inventory/dashboard
+```json
+// 200 { "dashboard": {
+//   "total": 42, "inStock": 30, "lowStock": 8, "outOfStock": 4,
+//   "recentItems": [...] } }
+```
+
+---
+
+## Shopping List
+
+### GET /circles/:circleId/shopping-list → `{ "items": [ShoppingListItem] }`
+
+### POST /circles/:circleId/shopping-list
+```json
+// req { "name": "Eggs", "quantityNeeded": 12, "unit": "pcs" }
+// 201 { "item": { "id": "...", "status": "PENDING", ... } }
+```
+
+### PATCH /shopping-list/:itemId
+```json
+// req { "status": "PURCHASED", "quantityNeeded": 6 }
+// 200 { "item": { ... } }
+```
+
+### DELETE /shopping-list/:itemId → `204`
+
+---
+
+## Wallet
+
+### GET /circles/:circleId/wallet/accounts → `{ "accounts": [WalletAccount] }`
+
+### POST /circles/:circleId/wallet/accounts
+```json
+// req { "name": "Household Cash", "type": "CASH", "balanceMinor": 50000 }
+// 201 { "account": { ... } }
+```
+
+### GET /circles/:circleId/wallet/categories → `{ "categories": [WalletCategory] }`
+
+### GET /circles/:circleId/wallet/transactions → `{ "transactions": [WalletTransaction] }`
+
+### POST /circles/:circleId/wallet/transactions
+```json
+// req { "type": "EXPENSE", "fromAccountId": "...", "categoryId": "...",
+//       "amountMinor": 1500, "description": "Groceries" }
+// 201 { "transaction": { ... } }
+```
+
+### GET /circles/:circleId/wallet/budgets → `{ "budgets": [Budget] }`
+
+### POST /circles/:circleId/wallet/budgets
+```json
+// req { "categoryId": "...", "frequency": "MONTHLY", "limitMinor": 100000 }
+// 201 { "budget": { ... } }
+```
+
+### GET /circles/:circleId/wallet/debts → `{ "debts": [Debt] }`
+
+### POST /circles/:circleId/wallet/debts
+```json
+// req { "lenderId": "...", "borrowerId": "...", "amountMinor": 5000, "description": "Gas money" }
+// 201 { "debt": { ... } }
+```
+
+### POST /wallet/debts/:debtId/payments
+```json
+// req { "amountMinor": 2500 }
+// 201 { "payment": { ... }, "debt": { "remainingMinor": 2500 } }
+```
+
+### GET /circles/:circleId/wallet/dashboard
+```json
+// 200 { "dashboard": {
+//   "totalBalance": 125000, "income": 50000, "expenses": 15000,
+//   "budgetStatus": {...}, "debtsOwedByMe": 0, "debtsOwedToMe": 2500 } }
+```

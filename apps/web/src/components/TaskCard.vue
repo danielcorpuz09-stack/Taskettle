@@ -13,6 +13,7 @@ const priorityBadge = computed(() => {
   switch (props.task.priority) {
     case 'URGENT': return { label: 'Urgent', cls: 'bg-error-container text-on-error-container' };
     case 'HIGH': return { label: 'High', cls: 'bg-secondary-container text-on-secondary-container' };
+    case 'MEDIUM': return { label: 'Medium', cls: 'bg-tertiary-container text-on-tertiary-container' };
     case 'LOW': return { label: 'Low', cls: 'bg-surface-container-high text-on-surface-variant' };
     default: return null;
   }

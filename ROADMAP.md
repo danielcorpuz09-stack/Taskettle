@@ -25,26 +25,34 @@ Ordered by dependency. Each milestone is independently shippable/testable.
 - Create invite, accept invite (existing or new user).
 - Frontend: Invite Member modal.
 
-## Milestone 4 — Tasks & board (core value)
-- `Task` model (status, assignee, dueDate, position).
+## Milestone 4 — Tasks & board (core value) ✅
+- `Task` model (status, assignee, dueDate, position, priority, category).
 - CRUD + `PATCH` for move/assign/complete.
 - Frontend: kanban Board (Todo/Doing/Done) with drag-and-drop,
-  Create Task modal, Task detail, assignment, due date.
+  Create Task modal, Task detail, priority/category badges.
 
-## Milestone 5 — Reminders
+## Milestone 5 — Reminders ✅
 - `Notification` model.
 - `node-cron` scanner (due-soon / overdue, deduped).
 - `GET /notifications`, mark read.
 - Frontend: notification bell + badge, polling.
 
-## Milestone 6 — Polish & hardening
+## Milestone 6 — Household modules ✅
+- **Inventory:** items, stock levels, categories, dashboard.
+- **Shopping List:** linked to inventory, purchase tracking, status toggling.
+- **Wallet:** accounts, categories, transactions, budgets, debts with payments.
+- All three include backend + frontend (stores, views, modals).
+
+## Milestone 7 — Polish & hardening (deferred)
 - Mobile board (horizontal scroll / stacked columns), bottom Fast-Add.
 - Rate limiting, helmet, input limits, 404/empty/loading states.
-- Seed script + minimal tests for services & guards.
+- Comprehensive test suite.
 
-## Post-MVP (designed for, not built)
-Household inventory · Medicine tracking · Family calendar · Shared notes ·
-Goal tracking · real-time sync · email/push delivery.
+## Phase 2: Next features (designed for, not yet built)
+**Collaboration & visibility:** task comments · activity feed · real-time board sync
+**Health & tracking:** medicine reminders · health tracking · meal planning
+**Future domains:** family calendar · shared notes · goal tracking · vehicle maintenance
+**Infrastructure:** email/SMS notifications · app push delivery · data export · activity analytics
 
-> Guardrail: if a proposed feature does not help validate "will groups
-> coordinate tasks here?", it is postponed. Add it to Post-MVP, not the MVP.
+> **Decision rule:** all new features must help families coordinate tasks or household
+> operations. Single-user or non-household features are deprioritized.
