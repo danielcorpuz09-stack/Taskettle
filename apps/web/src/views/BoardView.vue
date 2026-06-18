@@ -5,6 +5,7 @@ import BoardColumn from '@/components/BoardColumn.vue';
 import CreateTaskModal from '@/components/CreateTaskModal.vue';
 import TaskDetailModal from '@/components/TaskDetailModal.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
+import CircleSettingsModal from '@/components/CircleSettingsModal.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useBoardStore } from '@/stores/board';
@@ -19,12 +20,16 @@ const notifications = useNotificationStore();
 
 const showCreate = ref(false);
 const showInvite = ref(false);
+const showSettings = ref(false);
 const showNewCircle = ref(false);
 const showAvatarMenu = ref(false);
 const showSidebar = ref(false);
+const showMemberList = ref(false);
 const selectedTask = ref<Task | null>(null);
 const newCircleName = ref('');
 const error = ref('');
+const removingMemberId = ref<string | null>(null);
+const confirmingLeave = ref(false);
 
 // Tabs
 type TabId = 'boards' | 'schedule';
@@ -234,6 +239,29 @@ async function createCircle() {
     showNewCircle.value = false;
   } catch (err) {
     error.value = apiErrorMessage(err);
+  }
+}
+
+async function removeMember(userId: string) {
+  if (!board.currentCircleId) return;
+  error.value = '';
+  try {
+    await board.removeMember(board.currentCircleId, userId);
+    removingMemberId.value = null;
+  } catch (err) {
+    error.value = apiErrorMessage(err, 'Could not remove member');
+  }
+}
+
+async function leaveCircle() {
+  if (!board.currentCircleId) return;
+  error.value = '';
+  try {
+    await board.leaveCircle(board.currentCircleId);
+    confirmingLeave.value = false;
+    showMemberList.value = false;
+  } catch (err) {
+    error.value = apiErrorMessage(err, 'Could not leave circle');
   }
 }
 
@@ -449,23 +477,148 @@ function closeAvatarMenu() {
       <!-- Board -->
       <template v-else>
         <div class="flex items-center justify-between py-stack-sm flex-wrap gap-base">
-          <div class="flex items-center gap-stack-sm">
+          <div class="flex items-center gap-stack-sm flex-wrap">
             <h1 class="font-headline-lg text-headline-md sm:text-headline-lg text-on-surface">
               {{ board.currentCircle?.name }}
             </h1>
-            <div class="flex -space-x-2">
-              <span
-                v-for="m in board.members.slice(0, 5)"
-                :key="m.userId"
-                class="w-8 h-8 rounded-full border-2 border-surface flex items-center justify-center text-label-sm font-semibold text-on-primary"
-                :style="{ backgroundColor: m.avatarColor }"
-                :title="m.name"
+            <div class="flex -space-x-2 relative">
+              <button
+                class="relative flex -space-x-2"
+                :title="`${board.members.length} members`"
+                @click="showMemberList = !showMemberList"
               >
-                {{ m.name.charAt(0).toUpperCase() }}
-              </span>
+                <span
+                  v-for="m in board.members.slice(0, 5)"
+                  :key="m.userId"
+                  class="w-8 h-8 rounded-full border-2 border-surface flex items-center justify-center text-label-sm font-semibold text-on-primary cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                  :style="{ backgroundColor: m.avatarColor }"
+                  :title="m.name"
+                >
+                  {{ m.name.charAt(0).toUpperCase() }}
+                </span>
+              </button>
+              <!-- Member list dropdown -->
+              <Transition
+                enter-active-class="transition ease-out duration-150"
+                enter-from-class="opacity-0 scale-95"
+                enter-to-class="opacity-100 scale-100"
+                leave-active-class="transition ease-in duration-100"
+                leave-from-class="opacity-100 scale-100"
+                leave-to-class="opacity-0 scale-95"
+              >
+                <div
+                  v-if="showMemberList"
+                  class="absolute top-10 left-0 z-40 w-72 bg-surface rounded-xl shadow-lg border border-surface-container py-2"
+                >
+                  <p class="px-4 py-2 text-label-md text-on-surface-variant uppercase tracking-wider">Members</p>
+                  <div class="max-h-80 overflow-y-auto">
+                    <div
+                      v-for="m in board.members"
+                      :key="m.userId"
+                      class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-container transition-colors"
+                    >
+                      <div class="flex items-center gap-3 min-w-0">
+                        <span
+                          class="w-8 h-8 rounded-full flex items-center justify-center text-label-sm font-semibold text-on-primary shrink-0"
+                          :style="{ backgroundColor: m.avatarColor }"
+                        >
+                          {{ m.name.charAt(0).toUpperCase() }}
+                        </span>
+                        <div class="min-w-0">
+                          <p class="text-body-sm text-on-surface truncate">{{ m.name }}</p>
+                          <p class="text-label-sm text-on-surface-variant">{{ m.role }}</p>
+                        </div>
+                      </div>
+                      <div v-if="board.isCircleOwner && m.userId !== auth.user?.id" class="flex gap-1">
+                        <button
+                          class="p-1 rounded-full hover:bg-error-container/40 text-error transition-colors"
+                          :title="`Remove ${m.name}`"
+                          @click="removingMemberId = m.userId"
+                        >
+                          <span class="material-symbols-outlined !text-[18px]">close</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Remove member confirmation -->
+                  <div
+                    v-if="removingMemberId"
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40"
+                    @click.self="removingMemberId = null"
+                  >
+                    <div class="bg-surface-container-lowest rounded-xl shadow-float p-stack-md max-w-sm">
+                      <p class="text-body-md text-on-surface mb-stack-sm">
+                        Are you sure you want to remove
+                        <strong>{{ board.members.find(m => m.userId === removingMemberId)?.name }}</strong> from this circle?
+                      </p>
+                      <div class="flex gap-stack-sm">
+                        <button
+                          class="flex-1 py-stack-sm rounded-full border border-secondary text-secondary font-label-md hover:bg-secondary-container/40 active:scale-95 transition-all"
+                          @click="removingMemberId = null"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          class="flex-1 py-stack-sm rounded-full bg-error text-on-error font-label-md shadow-md hover:bg-error-container hover:text-on-error-container active:scale-95 transition-all"
+                          @click="removeMember(removingMemberId); removingMemberId = null"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Leave circle option (for non-owners) -->
+                  <div
+                    v-if="!board.isCircleOwner"
+                    class="border-t border-surface-container mt-2 pt-2"
+                  >
+                    <button
+                      class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-body-md text-error hover:bg-error-container/30 transition-colors"
+                      @click="confirmingLeave = true"
+                    >
+                      <span class="material-symbols-outlined !text-[18px]">logout</span>
+                      Leave circle
+                    </button>
+                  </div>
+                </div>
+              </Transition>
+              <!-- Leave circle confirmation -->
+              <div
+                v-if="confirmingLeave"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40"
+                @click.self="confirmingLeave = false"
+              >
+                <div class="bg-surface-container-lowest rounded-xl shadow-float p-stack-md max-w-sm">
+                  <p class="text-body-md text-on-surface mb-stack-sm">
+                    Leave <strong>{{ board.currentCircle?.name }}</strong>? You won't be able to see tasks in this circle anymore.
+                  </p>
+                  <div class="flex gap-stack-sm">
+                    <button
+                      class="flex-1 py-stack-sm rounded-full border border-secondary text-secondary font-label-md hover:bg-secondary-container/40 active:scale-95 transition-all"
+                      @click="confirmingLeave = false"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      class="flex-1 py-stack-sm rounded-full bg-error text-on-error font-label-md shadow-md hover:bg-error-container hover:text-on-error-container active:scale-95 transition-all"
+                      @click="leaveCircle"
+                    >
+                      Leave
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="flex items-center gap-base">
+            <button
+              v-if="board.isCircleOwner"
+              class="border border-secondary text-secondary px-stack-sm py-2 rounded-full font-label-md hover:bg-secondary-container/40 active:scale-95 transition-all flex items-center gap-base"
+              @click="showSettings = true"
+              title="Circle settings"
+            >
+              <span class="material-symbols-outlined !text-[18px]">settings</span>
+            </button>
             <button
               class="lg:hidden border border-secondary text-secondary px-stack-sm py-2 rounded-full font-label-md hover:bg-secondary-container/40 active:scale-95 transition-all flex items-center gap-base"
               @click="showInvite = true"
@@ -475,6 +628,13 @@ function closeAvatarMenu() {
             </button>
           </div>
         </div>
+
+        <!-- Backdrop for member list -->
+        <div
+          v-if="showMemberList"
+          class="fixed inset-0 z-30"
+          @click="showMemberList = false"
+        />
 
         <!-- Tabs -->
         <div class="flex gap-1 border-b border-surface-container mb-stack-sm">
@@ -662,6 +822,7 @@ function closeAvatarMenu() {
     <CreateTaskModal v-if="showCreate" @close="showCreate = false" />
     <TaskDetailModal v-if="selectedTask" :task="selectedTask" @close="selectedTask = null" />
     <InviteMemberModal v-if="showInvite" @close="showInvite = false" />
+    <CircleSettingsModal v-if="showSettings" @close="showSettings = false" />
 
     <div
       v-if="showNewCircle"

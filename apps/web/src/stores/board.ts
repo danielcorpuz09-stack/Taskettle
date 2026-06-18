@@ -30,6 +30,10 @@ export const useBoardStore = defineStore('board', {
       }
       return grouped;
     },
+    isCircleOwner: (state) => {
+      const circle = state.circles.find((c) => c.id === state.currentCircleId);
+      return circle?.role === 'OWNER';
+    },
   },
   actions: {
     async fetchCircles() {
@@ -125,6 +129,42 @@ export const useBoardStore = defineStore('board', {
       const idx = this.tasks.findIndex((t) => t.id === task.id);
       if (idx >= 0) this.tasks[idx] = task;
       else this.tasks.push(task);
+    },
+
+    async updateCircle(circleId: string, payload: { name?: string; icon?: string }) {
+      const { data } = await api.patch<{ circle: CircleSummary }>(`/circles/${circleId}`, payload);
+      const idx = this.circles.findIndex((c) => c.id === circleId);
+      if (idx >= 0) {
+        this.circles[idx] = data.circle;
+      }
+      return data.circle;
+    },
+
+    async archiveCircle(circleId: string) {
+      await api.delete(`/circles/${circleId}`);
+      this.circles = this.circles.filter((c) => c.id !== circleId);
+      if (this.currentCircleId === circleId) {
+        this.currentCircleId = this.circles.length > 0 ? this.circles[0].id : null;
+        if (this.currentCircleId) {
+          await this.loadBoard();
+        }
+      }
+    },
+
+    async removeMember(circleId: string, userId: string) {
+      await api.delete(`/circles/${circleId}/members/${userId}`);
+      this.members = this.members.filter((m) => m.userId !== userId);
+    },
+
+    async leaveCircle(circleId: string) {
+      await api.delete(`/circles/${circleId}/leave`);
+      this.circles = this.circles.filter((c) => c.id !== circleId);
+      if (this.currentCircleId === circleId) {
+        this.currentCircleId = this.circles.length > 0 ? this.circles[0].id : null;
+        if (this.currentCircleId) {
+          await this.loadBoard();
+        }
+      }
     },
 
     reset() {

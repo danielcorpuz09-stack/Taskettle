@@ -9,7 +9,7 @@ import { inventoryCircleRouter } from '../inventory/inventory.routes';
 import { shoppingListCircleRouter } from '../shopping-list/shopping-list.routes';
 import { walletCircleRouter } from '../wallet/wallet.routes';
 import * as controller from './circles.controller';
-import { circleIdParam, createCircleSchema } from './circles.schema';
+import { circleIdParam, createCircleSchema, updateCircleSchema, memberParam } from './circles.schema';
 
 export const circlesRouter = Router();
 
@@ -25,11 +25,38 @@ circlesRouter.get(
   asyncHandler(controller.get)
 );
 
+circlesRouter.patch(
+  '/:circleId',
+  validate({ params: circleIdParam, body: updateCircleSchema }),
+  requireMembership,
+  asyncHandler(controller.update)
+);
+
+circlesRouter.delete(
+  '/:circleId',
+  validate({ params: circleIdParam }),
+  requireMembership,
+  asyncHandler(controller.archive)
+);
+
 circlesRouter.get(
   '/:circleId/members',
   validate({ params: circleIdParam }),
   requireMembership,
   asyncHandler(controller.members)
+);
+
+circlesRouter.delete(
+  '/:circleId/members/:userId',
+  validate({ params: memberParam }),
+  requireMembership,
+  asyncHandler(controller.removeMember)
+);
+
+circlesRouter.delete(
+  '/:circleId/leave',
+  validate({ params: circleIdParam }),
+  asyncHandler(controller.leaveCircle)
 );
 
 // Nested circle-scoped resources (membership guard applied within).
