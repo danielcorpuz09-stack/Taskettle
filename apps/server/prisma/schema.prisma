@@ -25,6 +25,10 @@ datasource db {
 //   TransactionType    = 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_PAYMENT'
 //   BudgetPeriod       = 'WEEKLY' | 'MONTHLY' | 'CUSTOM'
 //   DebtStatus         = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED'
+//   HomeAssetCategory  = 'APPLIANCE' | 'ELECTRONICS' | 'FURNITURE' | 'POWER_TOOL' | 'OTHER'
+//   RecurringExpenseCategory = 'UTILITY' | 'SUBSCRIPTION'
+//   RecurringExpenseFrequency = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+//   MaintenanceFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'CUSTOM'
 // Money is stored as integer minor units (e.g. cents) plus an ISO currency code.
 // Switching to Postgres later, these can be promoted back to real enums.
 
@@ -54,6 +58,11 @@ model User {
   createdDebts         Debt[]              @relation("DebtCreatedBy")
   paidDebtPayments     DebtPayment[]       @relation("DebtPaymentPaidBy")
   receivedDebtPayments DebtPayment[]       @relation("DebtPaymentPaidTo")
+
+  createdHomeAssets        HomeAsset[]          @relation("HomeAssetCreatedBy")
+  createdRecurringExpenses RecurringExpense[]   @relation("RecurringExpenseCreatedBy")
+  createdVehicles          Vehicle[]            @relation("VehicleCreatedBy")
+  createdMaintenanceSchedules MaintenanceSchedule[] @relation("MaintenanceScheduleCreatedBy")
 }
 
 model Circle {
@@ -74,6 +83,11 @@ model Circle {
   walletTransactions WalletTransaction[]
   budgets            Budget[]
   debts              Debt[]
+
+  homeAssets         HomeAsset[]
+  recurringExpenses  RecurringExpense[]
+  vehicles           Vehicle[]
+  maintenanceSchedules MaintenanceSchedule[]
 }
 
 model Membership {
@@ -328,4 +342,93 @@ model DebtPayment {
   walletTransaction WalletTransaction? @relation(fields: [walletTransactionId], references: [id], onDelete: SetNull)
 
   @@index([debtId])
+}
+
+// Phase 2: Household Management
+
+model HomeAsset {
+  id                  String   @id @default(cuid())
+  circleId            String
+  name                String
+  category            String   @default("OTHER")
+  purchaseDate        DateTime?
+  warrantyExpiration  DateTime?
+  serialNumber        String?
+  receiptPhotoUrls    String?  // JSON array of URLs stored as string
+  currentValue        Int?     // Optional; in minor units if tracking value
+  notes               String?
+  createdById         String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("HomeAssetCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([circleId, category])
+  @@index([circleId, warrantyExpiration])
+}
+
+model RecurringExpense {
+  id           String   @id @default(cuid())
+  circleId     String
+  name         String
+  category     String   @default("UTILITY")  // UTILITY | SUBSCRIPTION
+  amountMinor  Int
+  currency     String   @default("USD")
+  dueDate      Int?     // Day of month (1-31) or null for flexible
+  frequency    String   @default("MONTHLY")  // MONTHLY | QUARTERLY | ANNUAL
+  autoPay      Boolean  @default(false)
+  notes        String?
+  lastOccurred DateTime?
+  nextDue      DateTime?
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("RecurringExpenseCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([circleId, category])
+  @@index([circleId, nextDue])
+}
+
+model Vehicle {
+  id                  String   @id @default(cuid())
+  circleId            String
+  name                String
+  model               String?
+  plateNumber         String?
+  registrationExpiry  DateTime?
+  insuranceExpiry     DateTime?
+  notes               String?
+  createdById         String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("VehicleCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([circleId])
+  @@index([registrationExpiry])
+  @@index([insuranceExpiry])
+}
+
+model MaintenanceSchedule {
+  id           String   @id @default(cuid())
+  circleId     String
+  title        String
+  description  String?
+  frequency    String   @default("MONTHLY")  // WEEKLY | MONTHLY | QUARTERLY | ANNUAL | CUSTOM
+  nextDueDate  DateTime
+  assigneeId   String?
+  lastTaskId   String?  // Reference to last created Task (for deduplication)
+  notes        String?
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("MaintenanceScheduleCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([circleId, nextDueDate])
 }

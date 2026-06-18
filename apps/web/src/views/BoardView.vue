@@ -421,11 +421,47 @@ function closeAvatarMenu() {
             Family Wallet
           </button>
           <button
+            v-if="hasCircle"
             class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md text-on-surface hover:bg-surface-container transition-colors"
             @click="router.push({ name: 'profile' }); showSidebar = false"
           >
             <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">person</span>
             Profile
+          </button>
+
+          <!-- Home Management Section -->
+          <p class="px-3 pt-3 pb-1 text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Home Management</p>
+          <button
+            v-if="hasCircle"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md text-on-surface hover:bg-surface-container transition-colors"
+            @click="router.push({ name: 'assets' }); showSidebar = false"
+          >
+            <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">home_storage</span>
+            Home Assets
+          </button>
+          <button
+            v-if="hasCircle"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md text-on-surface hover:bg-surface-container transition-colors"
+            @click="router.push({ name: 'recurring-expenses' }); showSidebar = false"
+          >
+            <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">receipt_long</span>
+            Recurring Expenses
+          </button>
+          <button
+            v-if="hasCircle"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md text-on-surface hover:bg-surface-container transition-colors"
+            @click="router.push({ name: 'vehicles' }); showSidebar = false"
+          >
+            <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">directions_car</span>
+            Vehicles
+          </button>
+          <button
+            v-if="hasCircle"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md text-on-surface hover:bg-surface-container transition-colors"
+            @click="router.push({ name: 'maintenance' }); showSidebar = false"
+          >
+            <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">home_repair_service</span>
+            Home Maintenance
           </button>
         </div>
 

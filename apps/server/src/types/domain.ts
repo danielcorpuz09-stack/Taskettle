@@ -13,3 +13,9 @@ export type WalletCategoryType = 'INCOME' | 'EXPENSE';
 export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_PAYMENT';
 export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
 export type DebtStatus = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
+
+// Phase 2: Household Management
+export type HomeAssetCategory = 'APPLIANCE' | 'ELECTRONICS' | 'FURNITURE' | 'POWER_TOOL' | 'OTHER';
+export type RecurringExpenseCategory = 'UTILITY' | 'SUBSCRIPTION';
+export type RecurringExpenseFrequency = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
+export type MaintenanceFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'CUSTOM';

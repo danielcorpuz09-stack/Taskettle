@@ -41,6 +41,26 @@ const router = createRouter({
       name: 'wallet',
       component: () => import('@/views/WalletView.vue'),
     },
+    {
+      path: '/assets',
+      name: 'assets',
+      component: () => import('@/views/AssetsView.vue'),
+    },
+    {
+      path: '/recurring-expenses',
+      name: 'recurring-expenses',
+      component: () => import('@/views/RecurringExpensesView.vue'),
+    },
+    {
+      path: '/vehicles',
+      name: 'vehicles',
+      component: () => import('@/views/VehiclesView.vue'),
+    },
+    {
+      path: '/maintenance',
+      name: 'maintenance',
+      component: () => import('@/views/MaintenanceView.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 });

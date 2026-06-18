@@ -10,6 +10,12 @@ export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_PAYMENT'
 export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
 export type DebtStatus = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
 
+// Phase 2: Household Management
+export type HomeAssetCategory = 'APPLIANCE' | 'ELECTRONICS' | 'FURNITURE' | 'POWER_TOOL' | 'OTHER';
+export type RecurringExpenseCategory = 'UTILITY' | 'SUBSCRIPTION';
+export type RecurringExpenseFrequency = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
+export type MaintenanceFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'CUSTOM';
+
 export interface User {
   id: string;
   name: string;
@@ -202,4 +208,69 @@ export interface WalletDashboard {
   owedByMeMinor: number;
   openDebtCount: number;
   overdueDebtCount: number;
+}
+
+// Phase 2: Household Management Interfaces
+
+export interface HomeAsset {
+  id: string;
+  circleId: string;
+  name: string;
+  category: HomeAssetCategory;
+  purchaseDate: string | null;
+  warrantyExpiration: string | null;
+  serialNumber: string | null;
+  receiptPhotoUrls: string[] | null;
+  currentValue: number | null;
+  notes: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecurringExpense {
+  id: string;
+  circleId: string;
+  name: string;
+  category: RecurringExpenseCategory;
+  amountMinor: number;
+  currency: string;
+  dueDate: number | null;
+  frequency: RecurringExpenseFrequency;
+  autoPay: boolean;
+  notes: string | null;
+  lastOccurred: string | null;
+  nextDue: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Vehicle {
+  id: string;
+  circleId: string;
+  name: string;
+  model: string | null;
+  plateNumber: string | null;
+  registrationExpiry: string | null;
+  insuranceExpiry: string | null;
+  notes: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MaintenanceSchedule {
+  id: string;
+  circleId: string;
+  title: string;
+  description: string | null;
+  frequency: MaintenanceFrequency;
+  nextDueDate: string;
+  assigneeId: string | null;
+  lastTaskId: string | null;
+  notes: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
 }
