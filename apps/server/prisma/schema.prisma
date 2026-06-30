@@ -1,7 +1,3 @@
-// Taskettle Prisma schema.
-// Dev uses SQLite. For production, switch provider to "postgresql"
-// and update DATABASE_URL — no model changes required.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,88 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// NOTE: SQLite does not support Prisma enums, so these are stored as String.
-// Allowed values are enforced in TypeScript (src/types) and Zod schemas:
-//   Role             = 'OWNER' | 'MEMBER'
-//   TaskStatus       = 'TODO' | 'DOING' | 'DONE'
-//   TaskPriority     = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-//   InviteStatus     = 'PENDING' | 'ACCEPTED' | 'EXPIRED'
-//   NotificationType = 'DUE_SOON' | 'OVERDUE' | 'DEBT_DUE_SOON' | 'DEBT_OVERDUE'
-//   InventoryStatus  = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'
-//   ShoppingItemStatus = 'PENDING' | 'PURCHASED'
-//   WalletAccountType  = 'CASH' | 'BANK' | 'CARD' | 'SAVINGS' | 'OTHER'
-//   WalletCategoryType = 'INCOME' | 'EXPENSE'
-//   TransactionType    = 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_PAYMENT'
-//   BudgetPeriod       = 'WEEKLY' | 'MONTHLY' | 'CUSTOM'
-//   DebtStatus         = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED'
-//   HomeAssetCategory  = 'APPLIANCE' | 'ELECTRONICS' | 'FURNITURE' | 'POWER_TOOL' | 'OTHER'
-//   RecurringExpenseCategory = 'UTILITY' | 'SUBSCRIPTION'
-//   RecurringExpenseFrequency = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
-//   MaintenanceFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'CUSTOM'
-// Money is stored as integer minor units (e.g. cents) plus an ISO currency code.
-// Switching to Postgres later, these can be promoted back to real enums.
-
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  avatarColor  String   @default("#8fa998")
-  createdAt    DateTime @default(now())
-
-  memberships   Membership[]
-  createdTasks  Task[]         @relation("TaskCreatedBy")
-  assignedTasks Task[]         @relation("TaskAssignee")
-  sentInvites   Invite[]       @relation("InviteSentBy")
-  notifications Notification[]
-
-  createdInventoryItems  InventoryItem[]    @relation("InventoryCreatedBy")
-  addedShoppingItems     ShoppingListItem[] @relation("ShoppingAddedBy")
-  purchasedShoppingItems ShoppingListItem[] @relation("ShoppingPurchasedBy")
-
-  ownedWalletAccounts  WalletAccount[]     @relation("WalletAccountOwner")
-  createdTransactions  WalletTransaction[] @relation("TransactionCreatedBy")
-  createdBudgets       Budget[]            @relation("BudgetCreatedBy")
-  lentDebts            Debt[]              @relation("DebtLender")
-  borrowedDebts        Debt[]              @relation("DebtBorrower")
-  createdDebts         Debt[]              @relation("DebtCreatedBy")
-  paidDebtPayments     DebtPayment[]       @relation("DebtPaymentPaidBy")
-  receivedDebtPayments DebtPayment[]       @relation("DebtPaymentPaidTo")
-
-  createdHomeAssets        HomeAsset[]          @relation("HomeAssetCreatedBy")
-  createdRecurringExpenses RecurringExpense[]   @relation("RecurringExpenseCreatedBy")
-  createdVehicles          Vehicle[]            @relation("VehicleCreatedBy")
+  id                          String                @id @default(cuid())
+  email                       String                @unique
+  passwordHash                String
+  name                        String
+  avatarColor                 String                @default("#8fa998")
+  createdAt                   DateTime              @default(now())
+  createdBudgets              Budget[]              @relation("BudgetCreatedBy")
+  createdBusinesses           Business[]            @relation("BusinessCreatedBy")
+  createdDebts                Debt[]                @relation("DebtCreatedBy")
+  borrowedDebts               Debt[]                @relation("DebtBorrower")
+  lentDebts                   Debt[]                @relation("DebtLender")
+  receivedDebtPayments        DebtPayment[]         @relation("DebtPaymentPaidTo")
+  paidDebtPayments            DebtPayment[]         @relation("DebtPaymentPaidBy")
+  createdHomeAssets           HomeAsset[]           @relation("HomeAssetCreatedBy")
+  createdInventoryItems       InventoryItem[]       @relation("InventoryCreatedBy")
+  sentInvites                 Invite[]              @relation("InviteSentBy")
   createdMaintenanceSchedules MaintenanceSchedule[] @relation("MaintenanceScheduleCreatedBy")
-  createdBusinesses     Business[]             @relation("BusinessCreatedBy")
-  businessFieldDefs     BusinessFieldDef[]     @relation("BusinessFieldDefCreatedBy")
-  businessRecords       BusinessRecord[]       @relation("BusinessRecordCreatedBy")
+  memberships                 Membership[]
+  notifications               Notification[]
+  createdProducts             Product[]             @relation("ProductCreatedBy")
+  createdSavingsGoals         SavingsGoal[]         @relation("SavingsGoalCreatedBy")
+  createdSavingsContributions SavingsContribution[] @relation("SavingsContributionCreatedBy")
+  createdRecurringExpenses    RecurringExpense[]    @relation("RecurringExpenseCreatedBy")
+  purchasedShoppingItems      ShoppingListItem[]    @relation("ShoppingPurchasedBy")
+  addedShoppingItems          ShoppingListItem[]    @relation("ShoppingAddedBy")
+  createdTasks                Task[]                @relation("TaskCreatedBy")
+  assignedTasks               Task[]                @relation("TaskAssignee")
+  createdVehicles             Vehicle[]             @relation("VehicleCreatedBy")
+  ownedWalletAccounts         WalletAccount[]       @relation("WalletAccountOwner")
+  createdTransactions         WalletTransaction[]   @relation("TransactionCreatedBy")
 }
 
 model Circle {
-  id        String   @id @default(cuid())
-  name      String
-  icon      String   @default("family_history")
-  archived  Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  memberships    Membership[]
-  tasks          Task[]
-  invites        Invite[]
-  inventoryItems InventoryItem[]
-  shoppingList   ShoppingListItem[]
-
-  walletAccounts     WalletAccount[]
-  walletCategories   WalletCategory[]
-  walletTransactions WalletTransaction[]
-  budgets            Budget[]
-  debts              Debt[]
-
-  homeAssets         HomeAsset[]
-  recurringExpenses  RecurringExpense[]
-  vehicles           Vehicle[]
+  id                   String                @id @default(cuid())
+  name                 String
+  icon                 String                @default("family_history")
+  archived             Boolean               @default(false)
+  createdAt            DateTime              @default(now())
+  budgets              Budget[]
+  businesses           Business[]
+  debts                Debt[]
+  homeAssets           HomeAsset[]
+  inventoryItems       InventoryItem[]
+  invites              Invite[]
   maintenanceSchedules MaintenanceSchedule[]
-  businesses         Business[]
-  businessRecords    BusinessRecord[]
+  memberships          Membership[]
+  recurringExpenses    RecurringExpense[]
+  savingsGoals         SavingsGoal[]
+  shoppingList         ShoppingListItem[]
+  tasks                Task[]
+  vehicles             Vehicle[]
+  walletAccounts       WalletAccount[]
+  walletCategories     WalletCategory[]
+  walletTransactions   WalletTransaction[]
 }
 
 model Membership {
@@ -101,9 +70,8 @@ model Membership {
   circleId String
   role     String   @default("MEMBER")
   joinedAt DateTime @default(now())
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  circle   Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, circleId])
   @@index([circleId])
@@ -111,7 +79,7 @@ model Membership {
 }
 
 model Invite {
-  id          String       @id @default(cuid())
+  id          String   @id @default(cuid())
   circleId    String
   email       String
   token       String   @unique @default(cuid())
@@ -119,42 +87,43 @@ model Invite {
   invitedById String
   expiresAt   DateTime
   createdAt   DateTime @default(now())
-
-  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  invitedBy User   @relation("InviteSentBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitedBy   User     @relation("InviteSentBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  circle      Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId])
   @@index([email])
 }
 
 model Task {
-  id          String     @id @default(cuid())
-  circleId    String
-  title       String
-  description String?
-  status      String     @default("TODO")
-  priority    String     @default("MEDIUM")
-  category    String?
-  assigneeId  String?
-  dueDate     DateTime?
-  position    Float      @default(1024)
-  createdById String
-  completedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  circle    Circle         @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  assignee  User?          @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  createdBy User           @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  notifications Notification[]
-  businessRecord BusinessRecord?
+  id              String         @id @default(cuid())
+  circleId        String
+  title           String
+  description     String?
+  status          String         @default("TODO")
+  priority        String         @default("MEDIUM")
+  category        String?
+  assigneeId      String?
+  dueDate         DateTime?
+  endAt           DateTime?
+  allDay          Boolean        @default(true)
+  recurrence      String?
+  recurrenceUntil DateTime?
+  position        Float          @default(1024)
+  createdById     String
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  notifications   Notification[]
+  createdBy       User           @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  assignee        User?          @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  circle          Circle         @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId, status, position])
   @@index([dueDate])
 }
 
 model Notification {
-  id        String           @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
   taskId    String?
   debtId    String?
@@ -162,10 +131,9 @@ model Notification {
   message   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
-
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  debt Debt? @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  debt      Debt?    @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, taskId, type])
   @@unique([userId, debtId, type])
@@ -173,159 +141,165 @@ model Notification {
 }
 
 model InventoryItem {
-  id               String   @id @default(cuid())
-  circleId         String
-  name             String
-  description      String?
-  category         String?
-  quantity         Float    @default(0)
-  unit             String?
-  minimumThreshold Float    @default(0)
-  location         String?
-  notes            String?
-  status           String   @default("IN_STOCK")
-  createdById      String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  createdBy User   @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  id                String             @id @default(cuid())
+  circleId          String
+  name              String
+  description       String?
+  category          String?
+  quantity          Float              @default(0)
+  unit              String?
+  minimumThreshold  Float              @default(0)
+  location          String?
+  notes             String?
+  status            String             @default("IN_STOCK")
+  unitPriceMinor    Int?
+  businessId        String?
+  createdById       String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  createdBy         User               @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  business          Business?          @relation(fields: [businessId], references: [id])
+  circle            Circle             @relation(fields: [circleId], references: [id], onDelete: Cascade)
   shoppingListItems ShoppingListItem[]
 
   @@index([circleId, status])
   @@index([circleId, category])
+  @@index([circleId, businessId])
 }
 
 model ShoppingListItem {
-  id              String    @id @default(cuid())
+  id              String         @id @default(cuid())
   circleId        String
   inventoryItemId String?
   name            String
-  quantityNeeded  Float     @default(1)
+  quantityNeeded  Float          @default(1)
   unit            String?
-  status          String    @default("PENDING")
+  status          String         @default("PENDING")
   addedById       String
   purchasedById   String?
   purchasedAt     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  circle        Circle         @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  inventoryItem InventoryItem? @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
-  addedBy       User           @relation("ShoppingAddedBy", fields: [addedById], references: [id], onDelete: Cascade)
-  purchasedBy   User?          @relation("ShoppingPurchasedBy", fields: [purchasedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  purchasedBy     User?          @relation("ShoppingPurchasedBy", fields: [purchasedById], references: [id])
+  addedBy         User           @relation("ShoppingAddedBy", fields: [addedById], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  circle          Circle         @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId, status])
 }
 
 model WalletAccount {
-  id        String   @id @default(cuid())
-  circleId  String
-  name      String
-  type      String   @default("CASH")
-  currency  String   @default("USD")
-  ownerId   String?
-  archivedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id           String              @id @default(cuid())
+  circleId     String
+  name         String
+  type         String              @default("CASH")
+  currency     String              @default("USD")
+  ownerId      String?
+  archivedAt   DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  defaultForBusinesses Business[]   @relation("BusinessDefaultAccount")
+  owner        User?               @relation("WalletAccountOwner", fields: [ownerId], references: [id])
   circle       Circle              @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  owner        User?               @relation("WalletAccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   transactions WalletTransaction[]
 
   @@index([circleId])
 }
 
 model WalletCategory {
-  id        String   @id @default(cuid())
-  circleId  String
-  name      String
-  type      String   @default("EXPENSE")
-  color     String   @default("#8fa998")
-  icon      String   @default("payments")
-  createdAt DateTime @default(now())
-
+  id           String              @id @default(cuid())
+  circleId     String
+  name         String
+  type         String              @default("EXPENSE")
+  color        String              @default("#8fa998")
+  icon         String              @default("payments")
+  createdAt    DateTime            @default(now())
+  budgets      Budget[]
   circle       Circle              @relation(fields: [circleId], references: [id], onDelete: Cascade)
   transactions WalletTransaction[]
-  budgets      Budget[]
 
   @@unique([circleId, name, type])
   @@index([circleId, type])
 }
 
 model WalletTransaction {
-  id              String   @id @default(cuid())
+  id              String          @id @default(cuid())
   circleId        String
   accountId       String
-  type            String   @default("EXPENSE")
+  type            String          @default("EXPENSE")
   amountMinor     Int
-  currency        String   @default("USD")
+  currency        String          @default("USD")
   categoryId      String?
   note            String?
   payee           String?
-  transactionDate DateTime @default(now())
+  transactionDate DateTime        @default(now())
   createdById     String
   debtId          String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  circle    Circle          @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  account   WalletAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  category  WalletCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  createdBy User            @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  debt      Debt?           @relation(fields: [debtId], references: [id], onDelete: SetNull)
-  payment   DebtPayment?
-  businessRecord BusinessRecord?
+  businessId      String?
+  productId       String?
+  goalId          String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  payment         DebtPayment?
+  savingsContribution SavingsContribution?
+  product         Product?        @relation(fields: [productId], references: [id])
+  business        Business?       @relation(fields: [businessId], references: [id])
+  goal            SavingsGoal?    @relation(fields: [goalId], references: [id])
+  debt            Debt?           @relation(fields: [debtId], references: [id])
+  createdBy       User            @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  category        WalletCategory? @relation(fields: [categoryId], references: [id])
+  account         WalletAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  circle          Circle          @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId, transactionDate])
   @@index([circleId, accountId])
   @@index([circleId, categoryId])
+  @@index([circleId, businessId])
+  @@index([circleId, goalId])
 }
 
 model Budget {
-  id          String    @id @default(cuid())
+  id          String          @id @default(cuid())
   circleId    String
   name        String
   categoryId  String?
   amountMinor Int
-  currency    String    @default("USD")
-  period      String    @default("MONTHLY")
-  startsAt    DateTime  @default(now())
+  currency    String          @default("USD")
+  period      String          @default("MONTHLY")
+  startsAt    DateTime        @default(now())
   endsAt      DateTime?
   createdById String
   archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  circle    Circle          @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  category  WalletCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  createdBy User            @relation("BudgetCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  createdBy   User            @relation("BudgetCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  category    WalletCategory? @relation(fields: [categoryId], references: [id])
+  circle      Circle          @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId])
 }
 
 model Debt {
-  id          String    @id @default(cuid())
-  circleId    String
-  lenderId    String
-  borrowerId  String
-  amountMinor Int
-  currency    String    @default("USD")
-  reason      String?
-  dueDate     DateTime?
-  status      String    @default("OPEN")
-  createdById String
-  paidAt      DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  circle       Circle              @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  lender       User                @relation("DebtLender", fields: [lenderId], references: [id], onDelete: Cascade)
-  borrower     User                @relation("DebtBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
-  createdBy    User                @relation("DebtCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  payments     DebtPayment[]
-  transactions WalletTransaction[]
+  id            String              @id @default(cuid())
+  circleId      String
+  lenderId      String
+  borrowerId    String
+  amountMinor   Int
+  currency      String              @default("USD")
+  reason        String?
+  dueDate       DateTime?
+  status        String              @default("OPEN")
+  createdById   String
+  paidAt        DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  createdBy     User                @relation("DebtCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  borrower      User                @relation("DebtBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  lender        User                @relation("DebtLender", fields: [lenderId], references: [id], onDelete: Cascade)
+  circle        Circle              @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  payments      DebtPayment[]
   notifications Notification[]
+  transactions  WalletTransaction[]
 
   @@index([circleId, status])
   @@index([lenderId])
@@ -333,87 +307,81 @@ model Debt {
 }
 
 model DebtPayment {
-  id                  String   @id @default(cuid())
+  id                  String             @id @default(cuid())
   debtId              String
   amountMinor         Int
-  currency            String   @default("USD")
+  currency            String             @default("USD")
   paidById            String
   paidToId            String
-  paidAt              DateTime @default(now())
-  walletTransactionId String?  @unique
-  createdAt           DateTime @default(now())
-
-  debt              Debt               @relation(fields: [debtId], references: [id], onDelete: Cascade)
-  paidBy            User               @relation("DebtPaymentPaidBy", fields: [paidById], references: [id], onDelete: Cascade)
-  paidTo            User               @relation("DebtPaymentPaidTo", fields: [paidToId], references: [id], onDelete: Cascade)
-  walletTransaction WalletTransaction? @relation(fields: [walletTransactionId], references: [id], onDelete: SetNull)
+  paidAt              DateTime           @default(now())
+  walletTransactionId String?            @unique
+  createdAt           DateTime           @default(now())
+  walletTransaction   WalletTransaction? @relation(fields: [walletTransactionId], references: [id])
+  paidTo              User               @relation("DebtPaymentPaidTo", fields: [paidToId], references: [id], onDelete: Cascade)
+  paidBy              User               @relation("DebtPaymentPaidBy", fields: [paidById], references: [id], onDelete: Cascade)
+  debt                Debt               @relation(fields: [debtId], references: [id], onDelete: Cascade)
 
   @@index([debtId])
 }
 
-// Phase 2: Household Management
-
 model HomeAsset {
-  id                  String   @id @default(cuid())
-  circleId            String
-  name                String
-  category            String   @default("OTHER")
-  purchaseDate        DateTime?
-  warrantyExpiration  DateTime?
-  serialNumber        String?
-  receiptPhotoUrls    String?  // JSON array of URLs stored as string
-  currentValue        Int?     // Optional; in minor units if tracking value
-  notes               String?
-  createdById         String
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  createdBy User   @relation("HomeAssetCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  id                 String    @id @default(cuid())
+  circleId           String
+  name               String
+  category           String    @default("OTHER")
+  purchaseDate       DateTime?
+  warrantyExpiration DateTime?
+  serialNumber       String?
+  receiptPhotoUrls   String?
+  currentValue       Int?
+  notes              String?
+  createdById        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          User      @relation("HomeAssetCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  circle             Circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId, category])
   @@index([circleId, warrantyExpiration])
 }
 
 model RecurringExpense {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   circleId     String
   name         String
-  category     String   @default("UTILITY")  // UTILITY | SUBSCRIPTION
+  category     String    @default("UTILITY")
   amountMinor  Int
-  currency     String   @default("USD")
-  dueDate      Int?     // Day of month (1-31) or null for flexible
-  frequency    String   @default("MONTHLY")  // MONTHLY | QUARTERLY | ANNUAL
-  autoPay      Boolean  @default(false)
+  currency     String    @default("USD")
+  dueDate      Int?
+  frequency    String    @default("MONTHLY")
+  autoPay      Boolean   @default(false)
   notes        String?
   lastOccurred DateTime?
   nextDue      DateTime?
   createdById  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  createdBy User   @relation("RecurringExpenseCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdBy    User      @relation("RecurringExpenseCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  circle       Circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId, category])
   @@index([circleId, nextDue])
 }
 
 model Vehicle {
-  id                  String   @id @default(cuid())
-  circleId            String
-  name                String
-  model               String?
-  plateNumber         String?
-  registrationExpiry  DateTime?
-  insuranceExpiry     DateTime?
-  notes               String?
-  createdById         String
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  createdBy User   @relation("VehicleCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  id                 String    @id @default(cuid())
+  circleId           String
+  name               String
+  model              String?
+  plateNumber        String?
+  registrationExpiry DateTime?
+  insuranceExpiry    DateTime?
+  notes              String?
+  createdById        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          User      @relation("VehicleCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  circle             Circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId])
   @@index([registrationExpiry])
@@ -421,110 +389,112 @@ model Vehicle {
 }
 
 model MaintenanceSchedule {
-  id           String   @id @default(cuid())
-  circleId     String
-  title        String
-  description  String?
-  frequency    String   @default("MONTHLY")  // WEEKLY | MONTHLY | QUARTERLY | ANNUAL | CUSTOM
-  nextDueDate  DateTime
-  assigneeId   String?
-  lastTaskId   String?  // Reference to last created Task (for deduplication)
-  notes        String?
-  createdById  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  createdBy User   @relation("MaintenanceScheduleCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  circleId    String
+  title       String
+  description String?
+  frequency   String   @default("MONTHLY")
+  nextDueDate DateTime
+  assigneeId  String?
+  lastTaskId  String?
+  notes       String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation("MaintenanceScheduleCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  circle      Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
   @@index([circleId, nextDueDate])
 }
 
-// Phase 3: Business Management
-
 model Business {
-  id            String   @id @default(cuid())
-  circleId      String
-  name          String
-  businessType  String   @default("GENERAL")  // Free-text: PRINT_SHOP, RENTAL, CAFE, etc.
-  description   String?
-  currency      String   @default("USD")
-  archivedAt    DateTime?
-  createdById   String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  circle      Circle              @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  createdBy   User                @relation("BusinessCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  fieldDefs   BusinessFieldDef[]
-  records     BusinessRecord[]
+  id                         String              @id @default(cuid())
+  circleId                   String
+  name                       String
+  type                       String              @default("PRINTING_3D")
+  currency                   String              @default("PHP")
+  defaultAccountId           String?
+  printerPowerW              Int?
+  printerPriceMinor          Int?
+  printerLifespanHr          Int?
+  electricityRatePerKwhMinor Int?
+  laborRatePerHrMinor        Int?
+  failurePct                 Float?
+  markupPct                  Float?
+  createdById                String
+  archivedAt                 DateTime?
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+  defaultAccount             WalletAccount?      @relation("BusinessDefaultAccount", fields: [defaultAccountId], references: [id], onDelete: SetNull)
+  createdBy                  User                @relation("BusinessCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  circle                     Circle              @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  inventoryItems             InventoryItem[]
+  products                   Product[]
+  transactions               WalletTransaction[]
 
   @@index([circleId])
-  @@index([circleId, businessType])
 }
 
-model BusinessFieldDef {
-  id               String   @id @default(cuid())
-  businessId       String
-  name             String
-  key              String   // Slug for the field
-  fieldType        String   // TEXT | NUMBER | CURRENCY | DATE | SELECT | BOOLEAN | URL
-  options          String?  // JSON array string for SELECT type
-  unit             String?
-  isRequired       Boolean  @default(false)
-  showInAnalytics  Boolean  @default(false)
-  position         Float    @default(1024)
-  createdById      String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+model Product {
+  id                   String              @id @default(cuid())
+  businessId           String
+  name                 String
+  notes                String?
+  currency             String              @default("PHP")
+  inputs               String
+  materialCostMinor    Int                 @default(0)
+  electricityCostMinor Int                 @default(0)
+  wearCostMinor        Int                 @default(0)
+  laborCostMinor       Int                 @default(0)
+  subtotalMinor        Int                 @default(0)
+  failurePct           Float               @default(0)
+  markupPct            Float               @default(0)
+  finalPriceMinor      Int                 @default(0)
+  createdById          String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  createdBy            User                @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  business             Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  transactions         WalletTransaction[]
 
-  business      Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  createdBy     User                  @relation("BusinessFieldDefCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  fieldValues   BusinessFieldValue[]
-
-  @@unique([businessId, key])
-  @@index([businessId, position])
+  @@index([businessId])
 }
 
-model BusinessRecord {
-  id                  String   @id @default(cuid())
-  businessId          String
-  circleId            String   // Denormalized for easier querying
-  recordType          String   @default("INCOME")  // INCOME | EXPENSE | ORDER | SERVICE | RENTAL_PERIOD | OTHER
-  title               String
-  amountMinor         Int?
-  currency            String?  @default("USD")
+model SavingsGoal {
+  id                String                @id @default(cuid())
+  circleId          String
+  name              String
+  targetAmountMinor Int
+  currency          String                @default("USD")
+  targetDate        DateTime?
+  icon              String                @default("savings")
+  color             String                @default("#8fa998")
+  status            String                @default("ACTIVE")
+  createdById       String
+  archivedAt        DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  circle            Circle                @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  createdBy         User                  @relation("SavingsGoalCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  contributions     SavingsContribution[]
+  transactions      WalletTransaction[]
+
+  @@index([circleId, status])
+}
+
+model SavingsContribution {
+  id                  String             @id @default(cuid())
+  goalId              String
+  amountMinor         Int
+  currency            String             @default("USD")
   note                String?
-  recordDate          DateTime @default(now())
-  walletTransactionId String?  @unique
-  taskId              String?  @unique
+  contributedAt       DateTime           @default(now())
   createdById         String
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  walletTransactionId String?            @unique
+  createdAt           DateTime           @default(now())
+  goal                SavingsGoal        @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  createdBy           User               @relation("SavingsContributionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  walletTransaction   WalletTransaction? @relation(fields: [walletTransactionId], references: [id])
 
-  business         Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  circle           Circle                @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  walletTransaction WalletTransaction?    @relation(fields: [walletTransactionId], references: [id], onDelete: SetNull)
-  task             Task?                 @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  createdBy        User                  @relation("BusinessRecordCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  fieldValues      BusinessFieldValue[]
-
-  @@index([businessId, recordDate])
-  @@index([circleId, recordDate])
-  @@index([businessId, recordType])
-}
-
-model BusinessFieldValue {
-  id          String   @id @default(cuid())
-  recordId    String
-  fieldDefId  String
-  value       String   // Stored as string; parsed by fieldType
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  record    BusinessRecord    @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  fieldDef  BusinessFieldDef  @relation(fields: [fieldDefId], references: [id], onDelete: Cascade)
-
-  @@unique([recordId, fieldDefId])
-  @@index([fieldDefId])
+  @@index([goalId])
 }

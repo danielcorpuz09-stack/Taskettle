@@ -12,16 +12,20 @@ import {
   createAccountSchema,
   createBudgetSchema,
   createCategorySchema,
+  createContributionSchema,
   createDebtSchema,
+  createGoalSchema,
   createTransactionSchema,
   dashboardQuerySchema,
   debtIdParam,
+  goalIdParam,
   recordPaymentSchema,
   transactionIdParam,
   transactionQuerySchema,
   updateAccountSchema,
   updateBudgetSchema,
   updateDebtSchema,
+  updateGoalSchema,
   updateTransactionSchema,
 } from './wallet.schema';
 
@@ -84,6 +88,13 @@ walletCircleRouter.post(
   asyncHandler(controller.createDebt)
 );
 
+walletCircleRouter.get('/goals', asyncHandler(controller.listGoals));
+walletCircleRouter.post(
+  '/goals',
+  validate({ body: createGoalSchema }),
+  asyncHandler(controller.createGoal)
+);
+
 // Top-level mutations: /wallet/*
 export const walletRouter = Router();
 walletRouter.use(requireAuth);
@@ -136,4 +147,25 @@ walletRouter.post(
   '/debts/:debtId/payments',
   validate({ params: debtIdParam, body: recordPaymentSchema }),
   asyncHandler(controller.recordPayment)
+);
+
+walletRouter.patch(
+  '/goals/:goalId',
+  validate({ params: goalIdParam, body: updateGoalSchema }),
+  asyncHandler(controller.updateGoal)
+);
+walletRouter.delete(
+  '/goals/:goalId',
+  validate({ params: goalIdParam }),
+  asyncHandler(controller.deleteGoal)
+);
+walletRouter.get(
+  '/goals/:goalId/contributions',
+  validate({ params: goalIdParam }),
+  asyncHandler(controller.listContributions)
+);
+walletRouter.post(
+  '/goals/:goalId/contributions',
+  validate({ params: goalIdParam, body: createContributionSchema }),
+  asyncHandler(controller.addContribution)
 );

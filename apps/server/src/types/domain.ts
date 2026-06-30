@@ -14,6 +14,7 @@ export type WalletCategoryType = 'INCOME' | 'EXPENSE';
 export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_PAYMENT';
 export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
 export type DebtStatus = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
+export type SavingsGoalStatus = 'ACTIVE' | 'ACHIEVED' | 'ARCHIVED';
 
 // Phase 2: Household Management
 export type HomeAssetCategory = 'APPLIANCE' | 'ELECTRONICS' | 'FURNITURE' | 'POWER_TOOL' | 'OTHER';

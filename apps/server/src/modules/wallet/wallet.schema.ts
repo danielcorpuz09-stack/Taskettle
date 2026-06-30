@@ -150,6 +150,41 @@ export const recordPaymentSchema = z.object({
   accountId: z.string().min(1).nullable().optional(),
 });
 
+// --- Savings Goals ---
+export const createGoalSchema = z.object({
+  name: z.string().trim().min(1, 'is required').max(80),
+  targetAmountMinor: amountMinor,
+  currency: currency.optional(),
+  targetDate: isoDate.nullable().optional(),
+  icon: z.string().trim().max(40).optional(),
+  color: z.string().trim().max(20).optional(),
+});
+
+export const updateGoalSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    targetAmountMinor: amountMinor.optional(),
+    currency: currency.optional(),
+    targetDate: isoDate.nullable().optional(),
+    icon: z.string().trim().max(40).optional(),
+    color: z.string().trim().max(20).optional(),
+    status: z.enum(['ACTIVE', 'ACHIEVED', 'ARCHIVED']).optional(),
+    archived: z.boolean().optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, { message: 'No fields to update' });
+
+export const goalIdParam = z.object({ goalId: z.string().min(1) });
+
+export const createContributionSchema = z.object({
+  amountMinor,
+  direction: z.enum(['DEPOSIT', 'WITHDRAWAL']).default('DEPOSIT'),
+  accountId: z.string().min(1).nullable().optional(),
+  note: z.string().trim().max(500).nullable().optional(),
+  contributedAt: isoDate.optional(),
+});
+
+export const contributionIdParam = z.object({ contributionId: z.string().min(1) });
+
 export type CreateAccountInput = z.infer<typeof createAccountSchema>;
 export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
@@ -160,5 +195,8 @@ export type UpdateBudgetInput = z.infer<typeof updateBudgetSchema>;
 export type CreateDebtInput = z.infer<typeof createDebtSchema>;
 export type UpdateDebtInput = z.infer<typeof updateDebtSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+export type CreateGoalInput = z.infer<typeof createGoalSchema>;
+export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
+export type CreateContributionInput = z.infer<typeof createContributionSchema>;
 export type DashboardQueryInput = z.infer<typeof dashboardQuerySchema>;
 export type AnalyticsQueryInput = z.infer<typeof analyticsQuerySchema>;

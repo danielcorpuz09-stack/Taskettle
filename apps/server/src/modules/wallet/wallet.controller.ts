@@ -130,3 +130,34 @@ export async function recordPayment(req: Request, res: Response): Promise<void> 
   const debt = await wallet.recordPayment(req.params.debtId, req.user!.id, req.body);
   res.status(201).json({ debt });
 }
+
+// --- Savings Goals ---
+export async function listGoals(req: Request, res: Response): Promise<void> {
+  const goals = await wallet.listGoals(req.params.circleId);
+  res.status(200).json({ goals });
+}
+
+export async function createGoal(req: Request, res: Response): Promise<void> {
+  const goal = await wallet.createGoal(req.params.circleId, req.user!.id, req.body);
+  res.status(201).json({ goal });
+}
+
+export async function updateGoal(req: Request, res: Response): Promise<void> {
+  const goal = await wallet.updateGoal(req.params.goalId, req.user!.id, req.body);
+  res.status(200).json({ goal });
+}
+
+export async function deleteGoal(req: Request, res: Response): Promise<void> {
+  await wallet.deleteGoal(req.params.goalId, req.user!.id);
+  res.status(204).send();
+}
+
+export async function listContributions(req: Request, res: Response): Promise<void> {
+  const contributions = await wallet.listContributions(req.params.goalId, req.user!.id);
+  res.status(200).json({ contributions });
+}
+
+export async function addContribution(req: Request, res: Response): Promise<void> {
+  const goal = await wallet.addContribution(req.params.goalId, req.user!.id, req.body);
+  res.status(201).json({ goal });
+}

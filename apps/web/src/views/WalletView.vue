@@ -15,7 +15,9 @@ import BudgetModal from '@/components/BudgetModal.vue';
 import DebtModal from '@/components/DebtModal.vue';
 import DebtPaymentModal from '@/components/DebtPaymentModal.vue';
 import AccountModal from '@/components/AccountModal.vue';
-import type { Debt } from '@/types';
+import CreateGoalModal from '@/components/CreateGoalModal.vue';
+import GoalContributionModal from '@/components/GoalContributionModal.vue';
+import type { Debt, SavingsGoal } from '@/types';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -27,9 +29,11 @@ const showTransaction = ref(false);
 const showBudget = ref(false);
 const showDebt = ref(false);
 const showAccount = ref(false);
+const showGoal = ref(false);
 const payingDebt = ref<Debt | null>(null);
+const contributingGoal = ref<SavingsGoal | null>(null);
 
-type TabId = 'overview' | 'insights' | 'transactions' | 'budgets' | 'debts' | 'accounts';
+type TabId = 'overview' | 'insights' | 'transactions' | 'budgets' | 'debts' | 'goals' | 'accounts';
 const activeTab = ref<TabId>('overview');
 
 const hasCircle = computed(() => Boolean(board.currentCircleId));
@@ -61,6 +65,8 @@ const primaryAction = computed(() => {
       return { label: 'New Budget', action: () => (showBudget.value = true) };
     case 'debts':
       return { label: 'New Debt', action: () => (showDebt.value = true) };
+    case 'goals':
+      return { label: 'New Goal', action: () => (showGoal.value = true) };
     case 'accounts':
       return { label: 'New Account', action: () => (showAccount.value = true) };
     default:
@@ -84,6 +90,7 @@ async function loadData(circleId: string) {
       wallet.fetchTransactions(circleId),
       wallet.fetchBudgets(circleId),
       wallet.fetchDebts(circleId),
+      wallet.fetchGoals(circleId),
       wallet.fetchAnalytics(circleId),
       board.loadBoard(),
     ]);
@@ -123,7 +130,9 @@ async function refresh() {
   showBudget.value = false;
   showDebt.value = false;
   showAccount.value = false;
+  showGoal.value = false;
   payingDebt.value = null;
+  contributingGoal.value = null;
   if (board.currentCircleId) await loadData(board.currentCircleId);
 }
 
@@ -191,7 +200,7 @@ function budgetPercent(spent: number, amount: number): number {
         <!-- Tabs -->
         <div class="flex gap-1 border-b border-surface-container mb-stack-sm overflow-x-auto">
           <button
-            v-for="tab in (['overview', 'insights', 'transactions', 'budgets', 'debts', 'accounts'] as TabId[])"
+            v-for="tab in (['overview', 'insights', 'transactions', 'budgets', 'debts', 'goals', 'accounts'] as TabId[])"
             :key="tab"
             class="px-4 py-2.5 text-label-md font-semibold transition-colors relative capitalize whitespace-nowrap"
             :class="activeTab === tab ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'"
@@ -354,6 +363,63 @@ function budgetPercent(spent: number, amount: number): number {
           </div>
         </template>
 
+        <!-- Goals -->
+        <template v-if="activeTab === 'goals'">
+          <div v-if="wallet.goals.length === 0" class="flex flex-col items-center justify-center text-center gap-stack-sm py-stack-lg">
+            <span class="material-symbols-outlined !text-[48px] text-on-surface-variant">savings</span>
+            <p class="text-body-md text-on-surface-variant">No savings goals yet. Start saving for something special!</p>
+          </div>
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-stack-sm pb-stack-md">
+            <div v-for="g in wallet.goals" :key="g.id" class="bg-surface-container rounded-xl p-stack-md flex flex-col gap-base">
+              <div class="flex items-start justify-between gap-base">
+                <div class="flex items-center gap-base min-w-0">
+                  <span class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined !text-[22px]">{{ g.icon }}</span>
+                  </span>
+                  <div class="flex flex-col min-w-0">
+                    <span class="font-label-md text-label-md text-on-surface truncate">{{ g.name }}</span>
+                    <span
+                      v-if="g.status === 'ACHIEVED'"
+                      class="text-label-sm text-tertiary font-semibold flex items-center gap-1"
+                    >
+                      <span class="material-symbols-outlined !text-[16px]">verified</span>Achieved
+                    </span>
+                    <span v-else-if="g.targetDate" class="text-body-sm text-on-surface-variant">
+                      {{ formatDueLabel(g.targetDate) }}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  class="text-on-surface-variant hover:text-error transition-colors shrink-0"
+                  aria-label="Delete goal"
+                  @click="wallet.deleteGoal(g.id)"
+                >
+                  <span class="material-symbols-outlined !text-[18px]">delete</span>
+                </button>
+              </div>
+
+              <div class="h-2 rounded-full bg-surface-container-high overflow-hidden">
+                <div
+                  class="h-full rounded-full bg-primary transition-all"
+                  :style="{ width: g.progressPercent + '%' }"
+                />
+              </div>
+
+              <div class="flex items-center justify-between text-body-sm">
+                <span class="text-on-surface">{{ formatMoney(g.savedMinor, g.currency) }} saved</span>
+                <span class="text-on-surface-variant">of {{ formatMoney(g.targetAmountMinor, g.currency) }}</span>
+              </div>
+
+              <button
+                class="mt-base self-end text-label-md text-primary hover:underline"
+                @click="contributingGoal = g"
+              >
+                + Contribute
+              </button>
+            </div>
+          </div>
+        </template>
+
         <!-- Accounts -->
         <template v-if="activeTab === 'accounts'">
           <div v-if="wallet.accounts.length === 0" class="flex flex-col items-center justify-center text-center gap-stack-sm py-stack-lg">
@@ -377,6 +443,8 @@ function budgetPercent(spent: number, amount: number): number {
     <BudgetModal v-if="showBudget" @close="showBudget = false" @saved="refresh" />
     <DebtModal v-if="showDebt" @close="showDebt = false" @saved="refresh" />
     <AccountModal v-if="showAccount" @close="showAccount = false" @saved="refresh" />
+    <CreateGoalModal v-if="showGoal" @close="showGoal = false" @saved="refresh" />
     <DebtPaymentModal v-if="payingDebt" :debt="payingDebt" @close="payingDebt = null" @saved="refresh" />
+    <GoalContributionModal v-if="contributingGoal" :goal="contributingGoal" @close="contributingGoal = null" @saved="refresh" />
   </div>
 </template>

@@ -10,6 +10,7 @@ export type WalletCategoryType = 'INCOME' | 'EXPENSE';
 export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DEBT_PAYMENT';
 export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
 export type DebtStatus = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
+export type SavingsGoalStatus = 'ACTIVE' | 'ACHIEVED' | 'ARCHIVED';
 
 // Phase 2: Household Management
 export type HomeAssetCategory = 'APPLIANCE' | 'ELECTRONICS' | 'FURNITURE' | 'POWER_TOOL' | 'OTHER';
@@ -152,6 +153,7 @@ export interface WalletTransaction {
   transactionDate: string;
   createdById: string;
   debtId: string | null;
+  goalId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -214,6 +216,38 @@ export interface WalletDashboard {
   owedByMeMinor: number;
   openDebtCount: number;
   overdueDebtCount: number;
+}
+
+export interface SavingsContribution {
+  id: string;
+  goalId: string;
+  amountMinor: number;
+  currency: string;
+  note: string | null;
+  contributedAt: string;
+  createdById: string;
+  walletTransactionId: string | null;
+  createdAt: string;
+}
+
+export interface SavingsGoal {
+  id: string;
+  circleId: string;
+  name: string;
+  targetAmountMinor: number;
+  currency: string;
+  targetDate: string | null;
+  icon: string;
+  color: string;
+  status: SavingsGoalStatus;
+  savedMinor: number;
+  remainingMinor: number;
+  progressPercent: number;
+  contributionCount: number;
+  createdById: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Phase 2: Household Management Interfaces

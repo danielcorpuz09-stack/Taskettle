@@ -3,6 +3,8 @@ import type {
   Debt,
   DebtPayment,
   Prisma,
+  SavingsContribution,
+  SavingsGoal,
   WalletAccount,
   WalletCategory,
   WalletTransaction,
@@ -13,6 +15,7 @@ import { assertMember } from '../circles/circles.service';
 import type {
   BudgetPeriod,
   DebtStatus,
+  SavingsGoalStatus,
   TransactionType,
   WalletAccountType,
   WalletCategoryType,
@@ -21,12 +24,15 @@ import type {
   CreateAccountInput,
   CreateBudgetInput,
   CreateCategoryInput,
+  CreateContributionInput,
   CreateDebtInput,
+  CreateGoalInput,
   CreateTransactionInput,
   RecordPaymentInput,
   UpdateAccountInput,
   UpdateBudgetInput,
   UpdateDebtInput,
+  UpdateGoalInput,
   UpdateTransactionInput,
 } from './wallet.schema';
 
@@ -69,6 +75,7 @@ export interface WalletTransactionDto {
   debtId: string | null;
   businessId: string | null;
   productId: string | null;
+  goalId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +126,38 @@ export interface DebtDto {
   payments: DebtPaymentDto[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SavingsGoalDto {
+  id: string;
+  circleId: string;
+  name: string;
+  targetAmountMinor: number;
+  savedMinor: number;
+  remainingMinor: number;
+  progressPercent: number;
+  contributionCount: number;
+  currency: string;
+  targetDate: string | null;
+  icon: string;
+  color: string;
+  status: SavingsGoalStatus;
+  createdById: string;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavingsContributionDto {
+  id: string;
+  goalId: string;
+  amountMinor: number;
+  currency: string;
+  note: string | null;
+  contributedAt: string;
+  createdById: string;
+  walletTransactionId: string | null;
+  createdAt: string;
 }
 
 export interface WalletDashboardDto {
@@ -213,6 +252,7 @@ function toTransactionDto(t: WalletTransaction): WalletTransactionDto {
     debtId: t.debtId,
     businessId: t.businessId,
     productId: t.productId,
+    goalId: t.goalId,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };
@@ -765,11 +805,11 @@ export async function getDashboard(
   const [income, expense, accounts, debts] = await Promise.all([
     prisma.walletTransaction.aggregate({
       _sum: { amountMinor: true },
-      where: { circleId, accountId, type: 'INCOME', transactionDate: { gte: monthStart, lt: monthEnd } },
+      where: { circleId, accountId, type: 'INCOME', goalId: null, transactionDate: { gte: monthStart, lt: monthEnd } },
     }),
     prisma.walletTransaction.aggregate({
       _sum: { amountMinor: true },
-      where: { circleId, accountId, type: 'EXPENSE', transactionDate: { gte: monthStart, lt: monthEnd } },
+      where: { circleId, accountId, type: 'EXPENSE', goalId: null, transactionDate: { gte: monthStart, lt: monthEnd } },
     }),
     prisma.walletAccount.findMany({
       where: { circleId, archivedAt: null, ...(accountId ? { id: accountId } : {}) },
@@ -942,7 +982,7 @@ export async function getAnalytics(
 
   const [windowTxns, priorTxns, categories, accounts] = await Promise.all([
     prisma.walletTransaction.findMany({
-      where: { circleId, accountId, transactionDate: { gte: rangeStart, lt: rangeEnd } },
+      where: { circleId, accountId, goalId: null, transactionDate: { gte: rangeStart, lt: rangeEnd } },
       select: { type: true, amountMinor: true, categoryId: true, payee: true, transactionDate: true },
     }),
     prisma.walletTransaction.findMany({
@@ -969,4 +1009,229 @@ export async function getAnalytics(
     balanceTrend: computeBalanceTrend(priorTxns, months),
     topPayees: computeTopPayees(windowTxns),
   };
+}
+
+// --- Savings Goals ---
+function toGoalDto(
+  goal: SavingsGoal,
+  savedMinor: number,
+  contributionCount: number
+): SavingsGoalDto {
+  const remainingMinor = Math.max(goal.targetAmountMinor - savedMinor, 0);
+  const progressPercent =
+    goal.targetAmountMinor > 0
+      ? Math.min(Math.max(Math.round((savedMinor / goal.targetAmountMinor) * 100), 0), 100)
+      : 0;
+  return {
+    id: goal.id,
+    circleId: goal.circleId,
+    name: goal.name,
+    targetAmountMinor: goal.targetAmountMinor,
+    savedMinor,
+    remainingMinor,
+    progressPercent,
+    contributionCount,
+    currency: goal.currency,
+    targetDate: goal.targetDate ? goal.targetDate.toISOString() : null,
+    icon: goal.icon,
+    color: goal.color,
+    status: goal.status as SavingsGoalStatus,
+    createdById: goal.createdById,
+    archived: goal.archivedAt !== null,
+    createdAt: goal.createdAt.toISOString(),
+    updatedAt: goal.updatedAt.toISOString(),
+  };
+}
+
+function toContributionDto(c: SavingsContribution): SavingsContributionDto {
+  return {
+    id: c.id,
+    goalId: c.goalId,
+    amountMinor: c.amountMinor,
+    currency: c.currency,
+    note: c.note,
+    contributedAt: c.contributedAt.toISOString(),
+    createdById: c.createdById,
+    walletTransactionId: c.walletTransactionId,
+    createdAt: c.createdAt.toISOString(),
+  };
+}
+
+/** Derive a goal's status from its saved total (archived goals stay archived). */
+function goalStatusFor(
+  savedMinor: number,
+  targetMinor: number,
+  current: string
+): SavingsGoalStatus {
+  if (current === 'ARCHIVED') return 'ARCHIVED';
+  return savedMinor >= targetMinor ? 'ACHIEVED' : 'ACTIVE';
+}
+
+export async function listGoals(circleId: string): Promise<SavingsGoalDto[]> {
+  const goals = await prisma.savingsGoal.findMany({
+    where: { circleId },
+    orderBy: [{ archivedAt: 'asc' }, { createdAt: 'desc' }],
+  });
+  if (goals.length === 0) return [];
+  const sums = await prisma.savingsContribution.groupBy({
+    by: ['goalId'],
+    where: { goalId: { in: goals.map((g) => g.id) } },
+    _sum: { amountMinor: true },
+    _count: { _all: true },
+  });
+  const byGoal = new Map(sums.map((s) => [s.goalId, s]));
+  return goals.map((g) => {
+    const agg = byGoal.get(g.id);
+    return toGoalDto(g, agg?._sum.amountMinor ?? 0, agg?._count._all ?? 0);
+  });
+}
+
+export async function createGoal(
+  circleId: string,
+  createdById: string,
+  input: CreateGoalInput
+): Promise<SavingsGoalDto> {
+  const goal = await prisma.savingsGoal.create({
+    data: {
+      circleId,
+      createdById,
+      name: input.name,
+      targetAmountMinor: input.targetAmountMinor,
+      currency: input.currency ?? 'USD',
+      targetDate: input.targetDate ? new Date(input.targetDate) : null,
+      icon: input.icon ?? 'savings',
+      color: input.color ?? '#8fa998',
+    },
+  });
+  return toGoalDto(goal, 0, 0);
+}
+
+export async function updateGoal(
+  goalId: string,
+  userId: string,
+  input: UpdateGoalInput
+): Promise<SavingsGoalDto> {
+  const existing = await prisma.savingsGoal.findUnique({ where: { id: goalId } });
+  if (!existing) throw new HttpError(404, 'Goal not found', 'NOT_FOUND');
+  await assertMember(userId, existing.circleId);
+
+  const data: Prisma.SavingsGoalUpdateInput = {};
+  if (input.name !== undefined) data.name = input.name;
+  if (input.targetAmountMinor !== undefined) data.targetAmountMinor = input.targetAmountMinor;
+  if (input.currency !== undefined) data.currency = input.currency;
+  if (input.targetDate !== undefined) {
+    data.targetDate = input.targetDate ? new Date(input.targetDate) : null;
+  }
+  if (input.icon !== undefined) data.icon = input.icon;
+  if (input.color !== undefined) data.color = input.color;
+  if (input.status !== undefined) data.status = input.status;
+  if (input.archived !== undefined) {
+    data.archivedAt = input.archived ? new Date() : null;
+    if (input.status === undefined) data.status = input.archived ? 'ARCHIVED' : 'ACTIVE';
+  }
+
+  const goal = await prisma.savingsGoal.update({ where: { id: goalId }, data });
+  const agg = await prisma.savingsContribution.aggregate({
+    where: { goalId },
+    _sum: { amountMinor: true },
+    _count: { _all: true },
+  });
+  return toGoalDto(goal, agg._sum.amountMinor ?? 0, agg._count._all);
+}
+
+export async function deleteGoal(goalId: string, userId: string): Promise<void> {
+  const existing = await prisma.savingsGoal.findUnique({ where: { id: goalId } });
+  if (!existing) throw new HttpError(404, 'Goal not found', 'NOT_FOUND');
+  await assertMember(userId, existing.circleId);
+  await prisma.savingsGoal.delete({ where: { id: goalId } });
+}
+
+export async function addContribution(
+  goalId: string,
+  userId: string,
+  input: CreateContributionInput
+): Promise<SavingsGoalDto> {
+  const goal = await prisma.savingsGoal.findUnique({ where: { id: goalId } });
+  if (!goal) throw new HttpError(404, 'Goal not found', 'NOT_FOUND');
+  await assertMember(userId, goal.circleId);
+  if (goal.status === 'ARCHIVED') {
+    throw new HttpError(400, 'This goal has been archived', 'GOAL_ARCHIVED');
+  }
+
+  const current = await prisma.savingsContribution.aggregate({
+    where: { goalId },
+    _sum: { amountMinor: true },
+  });
+  const savedMinor = current._sum.amountMinor ?? 0;
+
+  const isWithdrawal = input.direction === 'WITHDRAWAL';
+  if (isWithdrawal && input.amountMinor > savedMinor) {
+    throw new HttpError(400, 'Withdrawal exceeds the saved amount', 'WITHDRAWAL_TOO_LARGE');
+  }
+  const signedAmount = isWithdrawal ? -input.amountMinor : input.amountMinor;
+
+  const accountId = input.accountId ?? null;
+  if (accountId) await assertAccountInCircle(accountId, goal.circleId);
+  const contributedAt = input.contributedAt ? new Date(input.contributedAt) : new Date();
+
+  await prisma.$transaction(async (tx) => {
+    let walletTransactionId: string | null = null;
+    if (accountId) {
+      const txn = await tx.walletTransaction.create({
+        data: {
+          circleId: goal.circleId,
+          createdById: userId,
+          accountId,
+          // Deposit moves money out of the account (TRANSFER); withdrawal returns it (INCOME).
+          type: isWithdrawal ? 'INCOME' : 'TRANSFER',
+          amountMinor: input.amountMinor,
+          currency: goal.currency,
+          note: isWithdrawal ? `Withdrew from ${goal.name}` : `Saved toward ${goal.name}`,
+          transactionDate: contributedAt,
+          goalId: goal.id,
+        },
+      });
+      walletTransactionId = txn.id;
+    }
+
+    await tx.savingsContribution.create({
+      data: {
+        goalId: goal.id,
+        amountMinor: signedAmount,
+        currency: goal.currency,
+        note: input.note ?? null,
+        contributedAt,
+        createdById: userId,
+        walletTransactionId,
+      },
+    });
+
+    const status = goalStatusFor(savedMinor + signedAmount, goal.targetAmountMinor, goal.status);
+    if (status !== goal.status) {
+      await tx.savingsGoal.update({ where: { id: goal.id }, data: { status } });
+    }
+  });
+
+  const updated = await prisma.savingsGoal.findUnique({ where: { id: goalId } });
+  if (!updated) throw new HttpError(404, 'Goal not found', 'NOT_FOUND');
+  const agg = await prisma.savingsContribution.aggregate({
+    where: { goalId },
+    _sum: { amountMinor: true },
+    _count: { _all: true },
+  });
+  return toGoalDto(updated, agg._sum.amountMinor ?? 0, agg._count._all);
+}
+
+export async function listContributions(
+  goalId: string,
+  userId: string
+): Promise<SavingsContributionDto[]> {
+  const goal = await prisma.savingsGoal.findUnique({ where: { id: goalId } });
+  if (!goal) throw new HttpError(404, 'Goal not found', 'NOT_FOUND');
+  await assertMember(userId, goal.circleId);
+  const contributions = await prisma.savingsContribution.findMany({
+    where: { goalId },
+    orderBy: { contributedAt: 'desc' },
+  });
+  return contributions.map(toContributionDto);
 }

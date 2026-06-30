@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import type {
   Budget,
   Debt,
+  SavingsGoal,
   WalletAccount,
   WalletAnalytics,
   WalletCategory,
@@ -30,6 +31,7 @@ interface WalletState {
   transactions: WalletTransaction[];
   budgets: Budget[];
   debts: Debt[];
+  goals: SavingsGoal[];
   dashboard: WalletDashboard | null;
   analytics: WalletAnalytics | null;
   loading: boolean;
@@ -63,6 +65,7 @@ export const useWalletStore = defineStore('wallet', {
     transactions: [],
     budgets: [],
     debts: [],
+    goals: [],
     dashboard: null,
     analytics: null,
     loading: false,
@@ -294,12 +297,63 @@ export const useWalletStore = defineStore('wallet', {
       return data.debt;
     },
 
+    async fetchGoals(circleId: string) {
+      const { data } = await api.get<{ goals: SavingsGoal[] }>(
+        `/circles/${circleId}/wallet/goals`
+      );
+      this.goals = data.goals;
+    },
+
+    async createGoal(circleId: string, payload: Record<string, unknown>) {
+      const { data } = await api.post<{ goal: SavingsGoal }>(
+        `/circles/${circleId}/wallet/goals`,
+        payload
+      );
+      this.goals.unshift(data.goal);
+      return data.goal;
+    },
+
+    async updateGoal(goalId: string, payload: Record<string, unknown>) {
+      const { data } = await api.patch<{ goal: SavingsGoal }>(`/wallet/goals/${goalId}`, payload);
+      const idx = this.goals.findIndex((g) => g.id === goalId);
+      if (idx !== -1) this.goals[idx] = data.goal;
+      return data.goal;
+    },
+
+    async deleteGoal(goalId: string) {
+      await api.delete(`/wallet/goals/${goalId}`);
+      this.goals = this.goals.filter((g) => g.id !== goalId);
+    },
+
+    /**
+     * Record a deposit/withdrawal toward a goal. When the contribution moves
+     * money in/out of a real account, refresh accounts, transactions and the
+     * dashboard so balances stay in sync.
+     */
+    async addContribution(circleId: string, goalId: string, payload: Record<string, unknown>) {
+      const { data } = await api.post<{ goal: SavingsGoal }>(
+        `/wallet/goals/${goalId}/contributions`,
+        payload
+      );
+      const idx = this.goals.findIndex((g) => g.id === goalId);
+      if (idx !== -1) this.goals[idx] = data.goal;
+      if (payload.accountId) {
+        await Promise.all([
+          this.fetchAccounts(circleId),
+          this.fetchTransactions(circleId),
+          this.fetchDashboard(circleId),
+        ]);
+      }
+      return data.goal;
+    },
+
     reset() {
       this.accounts = [];
       this.categories = [];
       this.transactions = [];
       this.budgets = [];
       this.debts = [];
+      this.goals = [];
       this.dashboard = null;
       this.analytics = null;
       this.filters = { categoryId: '', type: '', search: '' };
