@@ -6,13 +6,29 @@ Taskettle is a cozy, family-friendly task board — Trello's calm cousin, built 
 families, roommates, and small groups instead of corporations. Plan chores,
 summer activities, DIY and home-improvement projects together.
 
-## ✨ MVP Features
+## ✨ Features
 
+**Core task board (MVP)**
 - Create a **Circle** (a group / household)
 - **Invite members** by email
-- **Create & assign tasks** with due dates
+- **Create & assign tasks** with due dates, priority and category
 - Move tasks between **Todo → Doing → Done** (drag & drop)
 - **Reminders** for tasks that are due soon or overdue
+
+**Household management**
+- **Inventory** — track stock levels, categories and low-stock alerts
+- **Shopping list** — collaborative list linked to inventory, with purchase tracking
+- **Wallet** — accounts, categories, transactions, budgets, debts + insights charts
+- **Home assets** — appliances, electronics, furniture, tools with warranty tracking
+- **Recurring expenses** — utility bills & subscriptions with monthly summaries
+- **Vehicles** — registration / insurance expiry tracking per vehicle
+- **Maintenance** — recurring household upkeep that auto-creates board tasks
+
+**Vertical**
+- **Business** — flexible custom records (custom field definitions) optionally
+  linked to wallet transactions and board tasks
+
+Everything is scoped to a **Circle**, the shared tenancy boundary.
 
 ## 🧱 Tech Stack
 

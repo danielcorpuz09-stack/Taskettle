@@ -28,9 +28,26 @@ and [docs/API.md](../docs/API.md) before non-trivial changes.
 - Throw `HttpError(status, message, code?)`; never `res.status().json()` for errors —
   the error middleware formats them.
 - Wrap async handlers with `asyncHandler`.
-- **Security:** every circle-scoped action MUST pass `requireMembership`. Never
-  trust `circleId`/`assigneeId` from the body without checking membership.
-  Hash passwords with bcrypt; never log secrets or tokens.
+- **Two routing patterns** (both must enforce membership):
+  1. *Circle-scoped routes* mounted under `/circles/:circleId/...` with the
+     `requireMembership` middleware (e.g. tasks, wallet, business records).
+  2. *Top-level resource routes* (e.g. `/api/assets`, `/api/vehicles`,
+     `/api/maintenance`, `/api/recurring-expenses`) that use `requireAuth`
+     only and re-check membership **inside the service** via the `circleId`
+     on the body or resource. List endpoints here are `POST /list` with
+     `circleId` in the body.
+- **Security:** every circle-scoped action MUST verify membership (middleware
+  or in-service). Never trust `circleId`/`assigneeId` from the body without
+  checking membership. Hash passwords with bcrypt; never log secrets or tokens.
+
+### Modules (current)
+Core: `auth`, `circles`, `invites`, `tasks`, `notifications`.
+Household: `inventory`, `shopping-list`, `wallet` (accounts, categories,
+transactions, budgets, debts), `assets` (home assets), `recurring-expenses`,
+`vehicles`, `maintenance` (auto-creates board tasks).
+Vertical: `business` (custom field-defs + records, optionally linked to
+wallet transactions and tasks).
+Money is stored as **integer minor units** (cents) plus an ISO currency code.
 
 ## Frontend (apps/web)
 - Vue 3 `<script setup lang="ts">` + Pinia + Vue Router + Tailwind.
@@ -49,5 +66,9 @@ and [docs/API.md](../docs/API.md) before non-trivial changes.
 - TypeScript everywhere; no `any` without a comment justifying it.
 - Task statuses are exactly `TODO | DOING | DONE`. Roles are `OWNER | MEMBER`.
 - Keep PRs focused on one roadmap milestone.
-- Don't add the future modules (inventory, medicine, calendar, notes, goals)
-  yet — but keep Circle as the tenancy boundary so they can be added later.
+- **Circle is the tenancy boundary** for every module — always scope new
+  models, queries, and routes by `circleId`.
+- SQLite has no enums: enum-like fields are stored as `String` and constrained
+  in `src/types/domain.ts` + the module's Zod schema. Keep the two in sync.
+- Not yet built (keep deferred unless asked): pet management, family calendar,
+  shared notes, goal tracking, email/SMS/push delivery.

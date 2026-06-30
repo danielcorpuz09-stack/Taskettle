@@ -15,6 +15,9 @@ applyTo: "apps/web/**/*.{vue,ts}"
 - `auth` — user, token, login/register/logout, `isAuthenticated`.
 - `board` — current circle, tasks grouped by status, optimistic move/assign.
 - `notifications` — list, unread count, polling.
+- Module stores — `inventory` (incl. shopping list), `wallet`, `assets`,
+  `recurring-expenses`, `vehicles`, `maintenance`, `business`. Each owns its
+  module's API calls and state.
 - Optimistic updates must roll back on API error.
 
 ## Design system (cozy "Family Hearth")

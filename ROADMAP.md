@@ -48,17 +48,20 @@ Ordered by dependency. Each milestone is independently shippable/testable.
 - Rate limiting, helmet, input limits, 404/empty/loading states.
 - Comprehensive test suite.
 
-## Phase 2 — Household Management (designed; core features in progress)
+## Phase 2 — Household Management ✅
 
 **Navigation:** grouped under "Home" parent. All circle-scoped (shared visibility).
+These modules use top-level resource routers (`/api/<module>`) with `requireAuth`
+plus in-service membership checks; list endpoints are `POST /list` with
+`circleId` in the body.
 
-### Home Assets (`src/modules/assets/`)
+### Home Assets (`src/modules/assets/`) ✅
 Track everything valuable in the house: appliances, electronics, furniture, power tools.
 - Fields: name, category, purchase date, warranty expiration, serial number, receipt photos, current value.
 - Schema: flat list + category tags (simple, Taskettle-aligned).
 - Competitors: Sortly, Encircle.
 
-### Recurring Expenses (extend `src/modules/wallet/` or new module)
+### Recurring Expenses (`src/modules/recurring-expenses/`) ✅
 Consolidates utility bills + subscriptions. Track what comes back every month.
 - **Utility Bills:** electricity, water, internet, mobile, gas.
 - **Subscriptions:** Netflix, Spotify, ChatGPT, domains, hosting, SaaS.
@@ -67,13 +70,13 @@ Consolidates utility bills + subscriptions. Track what comes back every month.
 - Reuses wallet transaction logic; adds recurrence scheduling.
 - Competitor: Bobby (for subscriptions).
 
-### Home Maintenance (`src/modules/maintenance/`)
+### Home Maintenance (`src/modules/maintenance/`) ✅
 Track recurring household maintenance; auto-create tasks on the board.
 - Track: aircon cleaning, water tank cleaning, roof inspection, pest control, septic tank service.
 - Integration: auto-creates recurring tasks with specified schedule + assignee.
 - Bridges Home Assets with task board (e.g., "Aircon filter change" → task every 6 months).
 
-### Vehicle Management (`src/modules/vehicles/`)
+### Vehicle Management (`src/modules/vehicles/`) ✅
 Track per vehicle: registration, insurance, fuel expenses, maintenance log, tire/oil changes.
 - Support multiple vehicles per circle.
 - Circle-scoped; useful for shared household vehicles.
@@ -83,10 +86,14 @@ Track per vehicle: registration, insurance, fuel expenses, maintenance log, tire
 Track: vaccinations, vet visits, food inventory, grooming schedules, expenses.
 Lower priority; can follow Phase 2.
 
-## Phase 3 — Vertical Markets (deferred)
-**Business Management:** niche expansion toward small landlords / rental properties.
-- Track: tenants, rent payments, maintenance requests, utility bills, property inventory.
-- Also applicable to other small businesses (3D printing, etc.); design for flexibility.
+## Phase 3 — Vertical Markets (Business shipped ✅)
+**Business Management (`src/modules/business/`):** a flexible custom-records
+system. Each business defines typed custom fields (`BusinessFieldDef`) and
+stores records (`BusinessRecord` + `BusinessFieldValue`) that can optionally
+link to a wallet transaction and/or a board task. Initial niche: small
+landlords / rental properties, print shops, cafés, etc.
+- Tracks: orders/services, income/expense records, rental periods, custom fields.
+- Designed for flexibility across small-business types.
 
 ---
 

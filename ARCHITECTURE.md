@@ -6,8 +6,9 @@
 non-corporate tool. Ship a production-ready, maintainable, mobile-responsive
 first version.
 
-**Non-goals (MVP):** real-time collaboration, push/email delivery, OAuth,
-billing, the future modules (inventory, medicine, calendar, notes, goals).
+**Non-goals (MVP):** real-time collaboration, push/email/SMS delivery, OAuth,
+billing. Deferred domains: pet management, family calendar, shared notes, and
+goal tracking (see [ROADMAP.md](ROADMAP.md)).
 
 ## 2. High-level shape
 
@@ -31,9 +32,13 @@ billing, the future modules (inventory, medicine, calendar, notes, goals).
 
 ## 3. Authorization model
 
-The core security rule: **every task/member/notification action is scoped to a
-Circle the user belongs to.** A `requireMembership(circleId)` guard loads the
-caller's membership and rejects non-members (OWASP A01 – broken access control).
+The core security rule: **every resource action is scoped to a Circle the user
+belongs to.** Membership is enforced two ways: circle-scoped routers
+(`/circles/:circleId/...`) use a `requireMembership` guard that loads the
+caller's membership and rejects non-members; top-level resource routers
+(`/api/assets`, `/api/vehicles`, `/api/maintenance`, `/api/recurring-expenses`)
+use `requireAuth` and re-check membership inside the service from the resource's
+`circleId` (OWASP A01 – broken access control).
 
 | Role | Can |
 |------|-----|
@@ -63,9 +68,13 @@ post-MVP swap behind the same notification table.
 
 ## 6. Frontend architecture
 
-- **Views** = routed pages (`SignIn`, `Register`, `Board`, `Circles`).
-- **Stores** (Pinia): `auth`, `board`, `notifications`. Stores own API calls;
-  components stay presentational.
+- **Views** = routed pages: `SignIn`, `Register`, `AcceptInvite`, `Board`,
+  `Profile`, plus a page per module (`Inventory`, `Wallet`, `Assets`,
+  `RecurringExpenses`, `Vehicles`, `Maintenance`, `Business`/`BusinessDetail`).
+- **Stores** (Pinia): `auth`, `board`, `notifications`, `inventory` (incl.
+  shopping list), `wallet`, `assets`, `recurring-expenses`, `vehicles`,
+  `maintenance`, `business`. Stores own all API calls; components stay
+  presentational and do optimistic updates that roll back on error.
 - **`lib/api.ts`** = single Axios instance; injects JWT, handles 401 → logout.
 - **Design tokens** live in `tailwind.config.js`, mirroring the Stitch
   "Cozy Family Hearth" system (sage / dusty-rose / cream).
@@ -80,37 +89,62 @@ post-MVP swap behind the same notification table.
 | Nuxt / SSR | Plain Vite SPA. SEO irrelevant for a private app. |
 | Microservices | Single modular monolith. Split later only if needed. |
 
-## 8. Current household modules
+## 8. Household & vertical modules
 
-Three production-ready modules extend the core task board:
+Several production-ready modules extend the core task board. All follow the
+same `route → controller → service → prisma` layering, scope every query by
+`circleId`, and ship with a backend module + Pinia store + Vue components.
 
-### Inventory (`src/modules/inventory`)
-Tracks household items with stock levels and categories.
-- **Models:** `InventoryItem` (name, category, quantity, unit, threshold, location, status)
-- **Status calculation:** auto-derived from qty vs. threshold (In Stock / Low Stock / Out of Stock)
-- **Key features:** dashboard with summaries, filter by category/status, search, link to shopping list
-- **Bridge:** "add to shopping list" action on inventory items
+### Phase 1 — household basics (circle-scoped routers)
 
-### Shopping List (`src/modules/shopping-list`)
-Collaborative grocery/supply list with purchase tracking.
-- **Models:** `ShoppingListItem` (name, quantity, unit, status, optional link to inventory item)
-- **Status:** `PENDING → PURCHASED`
-- **Key features:** add manually or from inventory, toggle purchased, delete items, empty state
-- **Dedupe:** optional link to `InventoryItem` for bulk operations
+**Inventory (`src/modules/inventory`)** — tracks household items with stock
+levels and categories. `status` is auto-derived from quantity vs. threshold
+(In Stock / Low Stock / Out of Stock); includes a dashboard and an
+"add to shopping list" bridge.
 
-### Wallet (`src/modules/wallet`)
-Household expense sharing: accounts, transactions, budgets, and debts.
-- **Models:** `WalletAccount` (type: CASH/BANK/CARD/etc), `WalletCategory` (INCOME/EXPENSE),
-  `WalletTransaction` (tracks flows), `Budget` (weekly/monthly/custom), `Debt` with `DebtPayment`
-- **Key features:** dashboard with balance/income/expense summaries, transaction filtering,
-  budget tracking, debt reconciliation with payment history
-- **Design:** balances computed server-side to prevent tampering; all amounts in minor units (cents)
+**Shopping List (`src/modules/shopping-list`)** — collaborative grocery/supply
+list with `PENDING → PURCHASED` tracking. Items can optionally link to an
+`InventoryItem`.
 
-All three modules:
-- Follow the same `route → controller → service → prisma` layering
-- Use Circle as the tenancy boundary (all queries filtered by `circleId`)
-- Include full CRUD API + Pinia store + Vue components
-- Are independently deployable; can be archived/disabled without touching tasks
+**Wallet (`src/modules/wallet`)** — household money: `WalletAccount`,
+`WalletCategory`, `WalletTransaction`, `Budget`, and `Debt` with `DebtPayment`.
+Account balances are **computed server-side** from transactions (never stored or
+trusted from the client); all amounts are integer minor units plus an ISO
+currency code. Includes a dashboard plus an analytics endpoint feeding insight
+charts.
+
+### Phase 2 — home management (top-level resource routers)
+
+These use `requireAuth` + in-service membership checks and expose
+`POST /list` (with `circleId` in the body) instead of `GET`.
+
+**Home Assets (`src/modules/assets`)** — appliances, electronics, furniture and
+power tools with purchase date, warranty expiration, serial number, receipt
+photo URLs and optional current value.
+
+**Recurring Expenses (`src/modules/recurring-expenses`)** — utility bills and
+subscriptions with amount, frequency (monthly/quarterly/annual), due day and an
+auto-pay flag for monthly spending summaries.
+
+**Vehicles (`src/modules/vehicles`)** — per-vehicle registration and insurance
+expiry tracking; supports multiple vehicles per circle.
+
+**Maintenance (`src/modules/maintenance`)** — recurring household upkeep
+schedules that **auto-create board tasks** when due, bridging upkeep with the
+kanban board (deduped via `lastTaskId`).
+
+### Phase 3 — vertical (`src/modules/business`)
+
+**Business** — a flexible records system for small operations (print shop,
+rental, café, etc.). Each `Business` defines its own `BusinessFieldDef`s
+(typed custom fields) and stores `BusinessRecord`s with `BusinessFieldValue`s.
+Records can optionally link to a `WalletTransaction` and/or a board `Task`.
+Uses **both** routing patterns: circle-scoped reads/creates under
+`/circles/:circleId/businesses`, and resource-scoped mutations under
+`/businesses`.
+
+Each module is independently deployable and can be archived/disabled without
+touching the task board.
 
 ## 9. How to add a Post-MVP module
 
@@ -125,5 +159,3 @@ Pattern (see inventory/wallet/shopping-list as templates):
 3. **Frontend store** in `apps/web/src/stores/<name>.ts` with API calls
 4. **Vue components** in `apps/web/src/components/` and views as needed
 5. **Documentation:** update `docs/API.md` (endpoint contract) and `SCHEMA.md` (models)
-
-## 10. Why these choices (and what we said no to)
