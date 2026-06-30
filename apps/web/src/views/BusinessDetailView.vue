@@ -10,6 +10,8 @@ import { formatMoney } from '@/lib/money';
 import { formatDueLabel } from '@/lib/date';
 import PrintCalculator from '@/components/PrintCalculator.vue';
 import RecordBusinessTransactionModal from '@/components/RecordBusinessTransactionModal.vue';
+import AddOrderToBacklogModal from '@/components/AddOrderToBacklogModal.vue';
+import type { Product } from '@/types';
 
 const route = useRoute();
 const router = useRouter();
@@ -32,6 +34,8 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 const recordKind = ref<'sale' | 'expense' | null>(null);
+const backlogProduct = ref<Product | null>(null);
+const backlogToast = ref('');
 
 async function loadAll(id: string) {
   try {
@@ -86,6 +90,12 @@ async function removeProduct(id: string) {
   } catch (err) {
     error.value = apiErrorMessage(err);
   }
+}
+
+function onOrderQueued() {
+  backlogProduct.value = null;
+  backlogToast.value = 'Order added to the board Backlog.';
+  setTimeout(() => (backlogToast.value = ''), 4000);
 }
 
 function txLabel(t: { note: string | null; payee: string | null }): string {
@@ -215,6 +225,10 @@ function txLabel(t: { note: string | null; payee: string | null }): string {
 
       <!-- Products -->
       <section v-else-if="activeTab === 'products'" class="flex flex-col gap-base">
+        <p v-if="backlogToast" class="bg-primary-container text-on-primary-container rounded-lg px-stack-sm py-base text-body-md flex items-center gap-base">
+          <span class="material-symbols-outlined !text-[18px]">check_circle</span>
+          {{ backlogToast }}
+        </p>
         <div v-if="business.products.length === 0" class="text-center text-on-surface-variant py-stack-lg text-body-md">
           No saved products yet. Use the Calculator to price one and save it.
         </div>
@@ -236,6 +250,13 @@ function txLabel(t: { note: string | null; payee: string | null }): string {
               <div class="flex justify-between"><dt>Subtotal</dt><dd>{{ formatMoney(p.breakdown.subtotalMinor, p.currency) }}</dd></div>
               <div class="flex justify-between"><dt>Markup</dt><dd>{{ p.breakdown.markupPct }}%</dd></div>
             </dl>
+            <button
+              class="mt-base w-full py-base rounded-full border border-outline-variant text-on-surface font-label-md flex items-center justify-center gap-base hover:bg-surface-container-high transition-colors"
+              @click="backlogProduct = p"
+            >
+              <span class="material-symbols-outlined !text-[18px]">playlist_add</span>
+              Add order to backlog
+            </button>
           </li>
         </ul>
       </section>
@@ -247,6 +268,14 @@ function txLabel(t: { note: string | null; payee: string | null }): string {
       :kind="recordKind"
       @close="recordKind = null"
       @saved="onTransactionSaved"
+    />
+
+    <AddOrderToBacklogModal
+      v-if="backlogProduct && current"
+      :business="current"
+      :product="backlogProduct"
+      @close="backlogProduct = null"
+      @saved="onOrderQueued"
     />
   </div>
 </template>

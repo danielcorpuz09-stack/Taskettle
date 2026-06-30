@@ -10,7 +10,7 @@ interface BoardState {
   loading: boolean;
 }
 
-const COLUMN_ORDER: TaskStatus[] = ['TODO', 'DOING', 'DONE'];
+const COLUMN_ORDER: TaskStatus[] = ['BACKLOG', 'TODO', 'DOING', 'DONE'];
 
 export const useBoardStore = defineStore('board', {
   state: (): BoardState => ({
@@ -23,7 +23,7 @@ export const useBoardStore = defineStore('board', {
   getters: {
     currentCircle: (state) => state.circles.find((c) => c.id === state.currentCircleId) ?? null,
     tasksByStatus: (state) => {
-      const grouped: Record<TaskStatus, Task[]> = { TODO: [], DOING: [], DONE: [] };
+      const grouped: Record<TaskStatus, Task[]> = { BACKLOG: [], TODO: [], DOING: [], DONE: [] };
       for (const task of state.tasks) grouped[task.status].push(task);
       for (const status of COLUMN_ORDER) {
         grouped[status].sort((a, b) => a.position - b.position);
@@ -77,6 +77,7 @@ export const useBoardStore = defineStore('board', {
       description?: string;
       assigneeId?: string | null;
       dueDate?: string | null;
+      status?: string;
       priority?: string;
       category?: string | null;
     }) {

@@ -129,6 +129,24 @@ export const useBusinessStore = defineStore('business', {
       this.products = this.products.filter((p) => p.id !== productId);
     },
 
+    /**
+     * Create a Backlog task in the given circle for a customer order based on a
+     * product. Quantity and customer live in the task title/description; the
+     * task lands in the board's Backlog column ready to be pulled into To Do.
+     */
+    async addProductToBacklog(
+      circleId: string,
+      payload: {
+        title: string;
+        description?: string;
+        dueDate?: string | null;
+        priority?: string;
+        category?: string | null;
+      }
+    ) {
+      await api.post(`/circles/${circleId}/tasks`, { ...payload, status: 'BACKLOG' });
+    },
+
     reset() {
       this.businesses = [];
       this.current = null;

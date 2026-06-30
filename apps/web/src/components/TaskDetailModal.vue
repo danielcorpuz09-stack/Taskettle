@@ -40,6 +40,7 @@ watch(
 );
 
 const statuses: { value: TaskStatus; label: string }[] = [
+  { value: 'BACKLOG', label: 'Backlog' },
   { value: 'TODO', label: 'To Do' },
   { value: 'DOING', label: 'Doing' },
   { value: 'DONE', label: 'Done' },

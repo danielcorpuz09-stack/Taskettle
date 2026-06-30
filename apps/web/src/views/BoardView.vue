@@ -19,6 +19,7 @@ const board = useBoardStore();
 const notifications = useNotificationStore();
 
 const showCreate = ref(false);
+const createStatus = ref<TaskStatus>('TODO');
 const showInvite = ref(false);
 const showSettings = ref(false);
 const showNewCircle = ref(false);
@@ -48,6 +49,7 @@ const otherCircleTasks = ref<Task[]>([]);
 const loadingOtherTasks = ref(false);
 
 const columns: { status: TaskStatus; title: string; accent: string }[] = [
+  { status: 'BACKLOG', title: 'Backlog', accent: '#c2b8a3' },
   { status: 'TODO', title: 'To Do', accent: '#8fa998' },
   { status: 'DOING', title: 'Doing', accent: '#aa9eb5' },
   { status: 'DONE', title: 'Done', accent: '#4c6455' },
@@ -60,8 +62,8 @@ const grouped = computed(() => {
 
   if (!q && !assignee) return all;
 
-  const result: Record<TaskStatus, Task[]> = { TODO: [], DOING: [], DONE: [] };
-  for (const status of ['TODO', 'DOING', 'DONE'] as TaskStatus[]) {
+  const result: Record<TaskStatus, Task[]> = { BACKLOG: [], TODO: [], DOING: [], DONE: [] };
+  for (const status of ['BACKLOG', 'TODO', 'DOING', 'DONE'] as TaskStatus[]) {
     result[status] = all[status].filter((task) => {
       if (q && !task.title.toLowerCase().includes(q) && !(task.description?.toLowerCase().includes(q))) return false;
       if (assignee && task.assignee?.userId !== assignee) return false;
@@ -213,6 +215,11 @@ function openTask(task: Task) {
   selectedTask.value = task;
 }
 
+function openCreate(status: TaskStatus = 'TODO') {
+  createStatus.value = status;
+  showCreate.value = true;
+}
+
 async function onDrop(payload: { taskId: string; status: TaskStatus; newIndex: number }) {
   const list = grouped.value[payload.status];
   // Compute a midpoint position between neighbours at the drop index.
@@ -302,7 +309,7 @@ function closeAvatarMenu() {
           <button
             v-if="hasCircle"
             class="bg-primary text-on-primary px-stack-sm sm:px-stack-md py-2 rounded-full font-label-md flex items-center gap-base hover:opacity-90 active:scale-95 transition-all"
-            @click="showCreate = true"
+            @click="openCreate('TODO')"
           >
             <span class="material-symbols-outlined !text-[20px]">add</span>
             <span class="hidden sm:inline">Create Task</span>
@@ -743,7 +750,7 @@ function closeAvatarMenu() {
               :tasks="grouped[col.status]"
               @open="openTask"
               @drop="onDrop"
-              @add="showCreate = true"
+              @add="openCreate"
             />
           </div>
         </template>
@@ -866,7 +873,7 @@ function closeAvatarMenu() {
     </div>
 
     <!-- Modals -->
-    <CreateTaskModal v-if="showCreate" @close="showCreate = false" />
+    <CreateTaskModal v-if="showCreate" :initial-status="createStatus" @close="showCreate = false" />
     <TaskDetailModal v-if="selectedTask" :task="selectedTask" @close="selectedTask = null" />
     <InviteMemberModal v-if="showInvite" @close="showInvite = false" />
     <CircleSettingsModal v-if="showSettings" @close="showSettings = false" />

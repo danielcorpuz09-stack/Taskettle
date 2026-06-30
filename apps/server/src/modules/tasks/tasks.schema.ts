@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const status = z.enum(['TODO', 'DOING', 'DONE']);
+const status = z.enum(['BACKLOG', 'TODO', 'DOING', 'DONE']);
 const priority = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']);
 
 // Accept ISO date strings or null; transform to Date.

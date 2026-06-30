@@ -1,5 +1,5 @@
 export type Role = 'OWNER' | 'MEMBER';
-export type TaskStatus = 'TODO' | 'DOING' | 'DONE';
+export type TaskStatus = 'BACKLOG' | 'TODO' | 'DOING' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type NotificationType = 'DUE_SOON' | 'OVERDUE' | 'DEBT_DUE_SOON' | 'DEBT_OVERDUE';
 export type InventoryStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';

@@ -8,14 +8,14 @@ import type { NotificationType } from '../types/domain';
  * per (assignee, task, type). The unique constraint on
  * (userId, taskId, type) makes this idempotent, so re-running never spams.
  *
- * Only tasks with an assignee and a dueDate, not DONE, are considered.
+ * Only tasks with an assignee and a dueDate, not DONE or BACKLOG, are considered.
  */
 export async function runReminderScan(now: Date = new Date()): Promise<number> {
   const dueSoonCutoff = new Date(now.getTime() + env.reminderDueSoonHours * 60 * 60 * 1000);
 
   const tasks = await prisma.task.findMany({
     where: {
-      status: { not: 'DONE' },
+      status: { notIn: ['DONE', 'BACKLOG'] },
       assigneeId: { not: null },
       dueDate: { not: null, lte: dueSoonCutoff },
     },

@@ -2,7 +2,7 @@
 // these union types are the single source of truth at the type level.
 
 export type Role = 'OWNER' | 'MEMBER';
-export type TaskStatus = 'TODO' | 'DOING' | 'DONE';
+export type TaskStatus = 'BACKLOG' | 'TODO' | 'DOING' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'EXPIRED';
 export type NotificationType = 'DUE_SOON' | 'OVERDUE' | 'DEBT_DUE_SOON' | 'DEBT_OVERDUE';

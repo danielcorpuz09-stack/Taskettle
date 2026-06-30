@@ -4,7 +4,9 @@ import BaseModal from './BaseModal.vue';
 import { useBoardStore } from '@/stores/board';
 import { apiErrorMessage } from '@/lib/api';
 import { fromDateTimeLocal } from '@/lib/date';
+import type { TaskStatus } from '@/types';
 
+const props = withDefaults(defineProps<{ initialStatus?: TaskStatus }>(), { initialStatus: 'TODO' });
 const board = useBoardStore();
 const emit = defineEmits<{ (e: 'close'): void }>();
 
@@ -24,6 +26,7 @@ async function submit() {
       description: form.description.trim() || undefined,
       assigneeId: form.assigneeId || null,
       dueDate: fromDateTimeLocal(form.dueDateLocal),
+      status: props.initialStatus,
       priority: form.priority as any,
       category: form.category || null,
     });
