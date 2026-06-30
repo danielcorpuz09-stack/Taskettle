@@ -6,6 +6,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import * as controller from './wallet.controller';
 import {
   accountIdParam,
+  analyticsQuerySchema,
   budgetIdParam,
   categoryIdParam,
   createAccountSchema,
@@ -13,6 +14,7 @@ import {
   createCategorySchema,
   createDebtSchema,
   createTransactionSchema,
+  dashboardQuerySchema,
   debtIdParam,
   recordPaymentSchema,
   transactionIdParam,
@@ -28,7 +30,16 @@ export const walletCircleRouter = Router({ mergeParams: true });
 
 walletCircleRouter.use(requireMembership);
 
-walletCircleRouter.get('/dashboard', asyncHandler(controller.dashboard));
+walletCircleRouter.get(
+  '/dashboard',
+  validate({ query: dashboardQuerySchema }),
+  asyncHandler(controller.dashboard)
+);
+walletCircleRouter.get(
+  '/analytics',
+  validate({ query: analyticsQuerySchema }),
+  asyncHandler(controller.analytics)
+);
 
 walletCircleRouter.get('/accounts', asyncHandler(controller.listAccounts));
 walletCircleRouter.post(
@@ -55,7 +66,11 @@ walletCircleRouter.post(
   asyncHandler(controller.createTransaction)
 );
 
-walletCircleRouter.get('/budgets', asyncHandler(controller.listBudgets));
+walletCircleRouter.get(
+  '/budgets',
+  validate({ query: dashboardQuerySchema }),
+  asyncHandler(controller.listBudgets)
+);
 walletCircleRouter.post(
   '/budgets',
   validate({ body: createBudgetSchema }),

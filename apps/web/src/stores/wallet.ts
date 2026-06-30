@@ -4,16 +4,24 @@ import type {
   Budget,
   Debt,
   WalletAccount,
+  WalletAnalytics,
   WalletCategory,
   WalletDashboard,
   WalletTransaction,
 } from '@/types';
 
 interface TransactionFilters {
-  accountId: string;
   categoryId: string;
   type: string;
   search: string;
+}
+
+export type RangePreset = 'this-month' | 'last-month' | 'last-3-months' | 'this-year' | 'custom';
+
+interface DateRange {
+  preset: RangePreset;
+  from: string;
+  to: string;
 }
 
 interface WalletState {
@@ -23,8 +31,29 @@ interface WalletState {
   budgets: Budget[];
   debts: Debt[];
   dashboard: WalletDashboard | null;
+  analytics: WalletAnalytics | null;
   loading: boolean;
   filters: TransactionFilters;
+  selectedAccountId: string;
+  dateRange: DateRange;
+}
+
+/** Computes ISO from/to bounds for a named period preset. */
+function computeRange(preset: RangePreset): { from: string; to: string } {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  switch (preset) {
+    case 'last-month':
+      return { from: new Date(y, m - 1, 1).toISOString(), to: new Date(y, m, 1).toISOString() };
+    case 'last-3-months':
+      return { from: new Date(y, m - 2, 1).toISOString(), to: new Date(y, m + 1, 1).toISOString() };
+    case 'this-year':
+      return { from: new Date(y, 0, 1).toISOString(), to: new Date(y + 1, 0, 1).toISOString() };
+    case 'this-month':
+    default:
+      return { from: new Date(y, m, 1).toISOString(), to: new Date(y, m + 1, 1).toISOString() };
+  }
 }
 
 export const useWalletStore = defineStore('wallet', {
@@ -35,8 +64,11 @@ export const useWalletStore = defineStore('wallet', {
     budgets: [],
     debts: [],
     dashboard: null,
+    analytics: null,
     loading: false,
-    filters: { accountId: '', categoryId: '', type: '', search: '' },
+    filters: { categoryId: '', type: '', search: '' },
+    selectedAccountId: '',
+    dateRange: { preset: 'last-3-months', ...computeRange('last-3-months') },
   }),
 
   getters: {
@@ -47,14 +79,64 @@ export const useWalletStore = defineStore('wallet', {
       state.debts.filter((d) => d.lenderId === userId && d.remainingMinor > 0),
     debtsOwedByMe: (state) => (userId: string) =>
       state.debts.filter((d) => d.borrowerId === userId && d.remainingMinor > 0),
+    selectedAccount: (state) =>
+      state.accounts.find((a) => a.id === state.selectedAccountId) ?? null,
+    rangeLabel: (state): string => {
+      switch (state.dateRange.preset) {
+        case 'this-month':
+          return 'This month';
+        case 'last-month':
+          return 'Last month';
+        case 'last-3-months':
+          return 'Last 3 months';
+        case 'this-year':
+          return 'This year';
+        default: {
+          const from = new Date(state.dateRange.from).toLocaleDateString();
+          const to = new Date(state.dateRange.to).toLocaleDateString();
+          return `${from} – ${to}`;
+        }
+      }
+    },
   },
 
   actions: {
+    /** Shared account + date-range query params for scoped wallet endpoints. */
+    rangeParams(): Record<string, string> {
+      const params: Record<string, string> = {
+        from: this.dateRange.from,
+        to: this.dateRange.to,
+      };
+      if (this.selectedAccountId) params.accountId = this.selectedAccountId;
+      return params;
+    },
+
+    setAccount(accountId: string) {
+      this.selectedAccountId = accountId;
+    },
+
+    setRange(preset: RangePreset, from?: string, to?: string) {
+      if (preset === 'custom' && from && to) {
+        this.dateRange = { preset, from, to };
+      } else {
+        this.dateRange = { preset, ...computeRange(preset) };
+      }
+    },
+
     async fetchDashboard(circleId: string) {
       const { data } = await api.get<{ dashboard: WalletDashboard }>(
-        `/circles/${circleId}/wallet/dashboard`
+        `/circles/${circleId}/wallet/dashboard`,
+        { params: this.rangeParams() }
       );
       this.dashboard = data.dashboard;
+    },
+
+    async fetchAnalytics(circleId: string) {
+      const { data } = await api.get<{ analytics: WalletAnalytics }>(
+        `/circles/${circleId}/wallet/analytics`,
+        { params: this.rangeParams() }
+      );
+      this.analytics = data.analytics;
     },
 
     async fetchAccounts(circleId: string) {
@@ -112,8 +194,7 @@ export const useWalletStore = defineStore('wallet', {
     async fetchTransactions(circleId: string) {
       this.loading = true;
       try {
-        const params: Record<string, string> = {};
-        if (this.filters.accountId) params.accountId = this.filters.accountId;
+        const params: Record<string, string> = { ...this.rangeParams() };
         if (this.filters.categoryId) params.categoryId = this.filters.categoryId;
         if (this.filters.type) params.type = this.filters.type;
         if (this.filters.search) params.search = this.filters.search;
@@ -152,8 +233,11 @@ export const useWalletStore = defineStore('wallet', {
     },
 
     async fetchBudgets(circleId: string) {
+      const params: Record<string, string> = {};
+      if (this.selectedAccountId) params.accountId = this.selectedAccountId;
       const { data } = await api.get<{ budgets: Budget[] }>(
-        `/circles/${circleId}/wallet/budgets`
+        `/circles/${circleId}/wallet/budgets`,
+        { params }
       );
       this.budgets = data.budgets;
     },
@@ -217,7 +301,10 @@ export const useWalletStore = defineStore('wallet', {
       this.budgets = [];
       this.debts = [];
       this.dashboard = null;
-      this.filters = { accountId: '', categoryId: '', type: '', search: '' };
+      this.analytics = null;
+      this.filters = { categoryId: '', type: '', search: '' };
+      this.selectedAccountId = '';
+      this.dateRange = { preset: 'last-3-months', ...computeRange('last-3-months') };
     },
   },
 });

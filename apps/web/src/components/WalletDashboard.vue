@@ -20,7 +20,7 @@ defineProps<{ dashboard: WalletDashboard }>();
     <div class="bg-surface-container rounded-xl p-stack-sm flex flex-col gap-1">
       <span class="text-label-sm text-on-surface-variant flex items-center gap-1">
         <span class="material-symbols-outlined !text-[18px] text-tertiary">trending_up</span>
-        Income (mo.)
+        Income
       </span>
       <span class="font-headline text-headline-sm text-on-surface">
         {{ formatMoney(dashboard.incomeMinor, dashboard.currency) }}
@@ -30,7 +30,7 @@ defineProps<{ dashboard: WalletDashboard }>();
     <div class="bg-surface-container rounded-xl p-stack-sm flex flex-col gap-1">
       <span class="text-label-sm text-on-surface-variant flex items-center gap-1">
         <span class="material-symbols-outlined !text-[18px] text-error">trending_down</span>
-        Spent (mo.)
+        Spent
       </span>
       <span class="font-headline text-headline-sm text-on-surface">
         {{ formatMoney(dashboard.expenseMinor, dashboard.currency) }}

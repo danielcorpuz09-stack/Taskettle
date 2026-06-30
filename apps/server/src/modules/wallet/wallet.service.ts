@@ -133,6 +133,42 @@ export interface WalletDashboardDto {
   overdueDebtCount: number;
 }
 
+export interface CategorySpendDto {
+  categoryId: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  totalMinor: number;
+}
+
+export interface MonthlyFlowDto {
+  month: string; // 'YYYY-MM'
+  incomeMinor: number;
+  expenseMinor: number;
+  netMinor: number;
+}
+
+export interface BalancePointDto {
+  month: string; // 'YYYY-MM'
+  balanceMinor: number;
+}
+
+export interface PayeeSpendDto {
+  payee: string;
+  totalMinor: number;
+  count: number;
+}
+
+export interface WalletAnalyticsDto {
+  currency: string;
+  rangeStart: string;
+  rangeEnd: string;
+  spendingByCategory: CategorySpendDto[];
+  incomeExpenseByMonth: MonthlyFlowDto[];
+  balanceTrend: BalancePointDto[];
+  topPayees: PayeeSpendDto[];
+}
+
 // --- Mappers ---
 function toAccountDto(a: WalletAccount, balanceMinor: number): WalletAccountDto {
   return {
@@ -460,7 +496,7 @@ function budgetWindow(budget: Budget, now: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
-async function computeBudgetSpend(budget: Budget, now: Date): Promise<number> {
+async function computeBudgetSpend(budget: Budget, now: Date, accountId?: string): Promise<number> {
   const { start, end } = budgetWindow(budget, now);
   const result = await prisma.walletTransaction.aggregate({
     _sum: { amountMinor: true },
@@ -468,14 +504,15 @@ async function computeBudgetSpend(budget: Budget, now: Date): Promise<number> {
       circleId: budget.circleId,
       type: 'EXPENSE',
       categoryId: budget.categoryId ?? undefined,
+      accountId: accountId || undefined,
       transactionDate: { gte: start, lt: end },
     },
   });
   return result._sum.amountMinor ?? 0;
 }
 
-async function toBudgetDto(budget: Budget, now: Date): Promise<BudgetDto> {
-  const spentMinor = await computeBudgetSpend(budget, now);
+async function toBudgetDto(budget: Budget, now: Date, accountId?: string): Promise<BudgetDto> {
+  const spentMinor = await computeBudgetSpend(budget, now, accountId);
   return {
     id: budget.id,
     circleId: budget.circleId,
@@ -495,13 +532,16 @@ async function toBudgetDto(budget: Budget, now: Date): Promise<BudgetDto> {
   };
 }
 
-export async function listBudgets(circleId: string): Promise<BudgetDto[]> {
+export async function listBudgets(
+  circleId: string,
+  opts?: { accountId?: string }
+): Promise<BudgetDto[]> {
   const budgets = await prisma.budget.findMany({
     where: { circleId },
     orderBy: [{ archivedAt: 'asc' }, { createdAt: 'desc' }],
   });
   const now = new Date();
-  return Promise.all(budgets.map((b) => toBudgetDto(b, now)));
+  return Promise.all(budgets.map((b) => toBudgetDto(b, now, opts?.accountId)));
 }
 
 export async function createBudget(
@@ -714,23 +754,25 @@ export async function recordPayment(
 // --- Dashboard ---
 export async function getDashboard(
   circleId: string,
-  userId: string
+  userId: string,
+  opts?: { accountId?: string; from?: string; to?: string }
 ): Promise<WalletDashboardDto> {
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const monthStart = opts?.from ? new Date(opts.from) : new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = opts?.to ? new Date(opts.to) : new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const accountId = opts?.accountId || undefined;
 
   const [income, expense, accounts, debts] = await Promise.all([
     prisma.walletTransaction.aggregate({
       _sum: { amountMinor: true },
-      where: { circleId, type: 'INCOME', transactionDate: { gte: monthStart, lt: monthEnd } },
+      where: { circleId, accountId, type: 'INCOME', transactionDate: { gte: monthStart, lt: monthEnd } },
     }),
     prisma.walletTransaction.aggregate({
       _sum: { amountMinor: true },
-      where: { circleId, type: 'EXPENSE', transactionDate: { gte: monthStart, lt: monthEnd } },
+      where: { circleId, accountId, type: 'EXPENSE', transactionDate: { gte: monthStart, lt: monthEnd } },
     }),
     prisma.walletAccount.findMany({
-      where: { circleId, archivedAt: null },
+      where: { circleId, archivedAt: null, ...(accountId ? { id: accountId } : {}) },
       include: { transactions: { select: { type: true, amountMinor: true } } },
     }),
     prisma.debt.findMany({
@@ -774,5 +816,157 @@ export async function getDashboard(
     owedByMeMinor,
     openDebtCount,
     overdueDebtCount,
+  };
+}
+
+// --- Analytics ---
+/** 'YYYY-MM' key for a date, used to bucket transactions by calendar month. */
+function monthKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** List of first-of-month dates from start (inclusive) up to end (exclusive). */
+function enumerateMonths(start: Date, end: Date): Date[] {
+  const months: Date[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const last = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (cursor <= last) {
+    months.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return months;
+}
+
+type AnalyticsTxn = {
+  type: string;
+  amountMinor: number;
+  categoryId: string | null;
+  payee: string | null;
+  transactionDate: Date;
+};
+
+function computeSpendingByCategory(
+  windowTxns: AnalyticsTxn[],
+  categoryById: Map<string, WalletCategory>
+): CategorySpendDto[] {
+  const spendMap = new Map<string, number>();
+  for (const t of windowTxns) {
+    if (t.type !== 'EXPENSE') continue;
+    const key = t.categoryId ?? '__uncategorized__';
+    spendMap.set(key, (spendMap.get(key) ?? 0) + t.amountMinor);
+  }
+  return [...spendMap.entries()]
+    .map(([key, totalMinor]) => {
+      const cat = key === '__uncategorized__' ? undefined : categoryById.get(key);
+      return {
+        categoryId: cat?.id ?? null,
+        name: cat?.name ?? 'Uncategorized',
+        color: cat?.color ?? '#b0b0b0',
+        icon: cat?.icon ?? 'help',
+        totalMinor,
+      };
+    })
+    .sort((a, b) => b.totalMinor - a.totalMinor);
+}
+
+function computeMonthlyFlow(windowTxns: AnalyticsTxn[], months: Date[]): MonthlyFlowDto[] {
+  const flowByMonth = new Map<string, { incomeMinor: number; expenseMinor: number }>();
+  for (const m of months) flowByMonth.set(monthKey(m), { incomeMinor: 0, expenseMinor: 0 });
+  for (const t of windowTxns) {
+    const bucket = flowByMonth.get(monthKey(t.transactionDate));
+    if (!bucket) continue;
+    if (t.type === 'INCOME') bucket.incomeMinor += t.amountMinor;
+    else if (t.type === 'EXPENSE') bucket.expenseMinor += t.amountMinor;
+  }
+  return months.map((m) => {
+    const key = monthKey(m);
+    const b = flowByMonth.get(key)!;
+    return {
+      month: key,
+      incomeMinor: b.incomeMinor,
+      expenseMinor: b.expenseMinor,
+      netMinor: b.incomeMinor - b.expenseMinor,
+    };
+  });
+}
+
+function computeBalanceTrend(
+  priorTxns: { type: string; amountMinor: number; transactionDate: Date }[],
+  months: Date[]
+): BalancePointDto[] {
+  const trend: BalancePointDto[] = [];
+  let running = 0;
+  let idx = 0;
+  for (const m of months) {
+    const monthEnd = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+    while (idx < priorTxns.length && priorTxns[idx].transactionDate < monthEnd) {
+      running += balanceEffect(priorTxns[idx].type, priorTxns[idx].amountMinor);
+      idx += 1;
+    }
+    trend.push({ month: monthKey(m), balanceMinor: running });
+  }
+  return trend;
+}
+
+function computeTopPayees(windowTxns: AnalyticsTxn[]): PayeeSpendDto[] {
+  const payeeMap = new Map<string, { totalMinor: number; count: number }>();
+  for (const t of windowTxns) {
+    if (t.type !== 'EXPENSE' || !t.payee) continue;
+    const entry = payeeMap.get(t.payee) ?? { totalMinor: 0, count: 0 };
+    entry.totalMinor += t.amountMinor;
+    entry.count += 1;
+    payeeMap.set(t.payee, entry);
+  }
+  return [...payeeMap.entries()]
+    .map(([payee, v]) => ({ payee, totalMinor: v.totalMinor, count: v.count }))
+    .sort((a, b) => b.totalMinor - a.totalMinor)
+    .slice(0, 8);
+}
+
+/**
+ * Wallet analytics for a circle over a date window, optionally scoped to one
+ * account. Spending/flow buckets only count transactions inside the window;
+ * the balance trend is cumulative and includes all prior transactions so each
+ * point reflects the true running balance.
+ */
+export async function getAnalytics(
+  circleId: string,
+  opts?: { accountId?: string; from?: string; to?: string }
+): Promise<WalletAnalyticsDto> {
+  const now = new Date();
+  const rangeEnd = opts?.to ? new Date(opts.to) : new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const rangeStart = opts?.from
+    ? new Date(opts.from)
+    : new Date(rangeEnd.getFullYear(), rangeEnd.getMonth() - 5, 1);
+  const accountId = opts?.accountId || undefined;
+
+  const [windowTxns, priorTxns, categories, accounts] = await Promise.all([
+    prisma.walletTransaction.findMany({
+      where: { circleId, accountId, transactionDate: { gte: rangeStart, lt: rangeEnd } },
+      select: { type: true, amountMinor: true, categoryId: true, payee: true, transactionDate: true },
+    }),
+    prisma.walletTransaction.findMany({
+      where: { circleId, accountId, transactionDate: { lt: rangeEnd } },
+      select: { type: true, amountMinor: true, transactionDate: true },
+      orderBy: { transactionDate: 'asc' },
+    }),
+    prisma.walletCategory.findMany({ where: { circleId } }),
+    prisma.walletAccount.findMany({
+      where: { circleId, ...(accountId ? { id: accountId } : {}) },
+      select: { currency: true },
+    }),
+  ]);
+
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const months = enumerateMonths(rangeStart, rangeEnd);
+
+  return {
+    currency: accounts[0]?.currency ?? 'USD',
+    rangeStart: rangeStart.toISOString(),
+    rangeEnd: rangeEnd.toISOString(),
+    spendingByCategory: computeSpendingByCategory(windowTxns, categoryById),
+    incomeExpenseByMonth: computeMonthlyFlow(windowTxns, months),
+    balanceTrend: computeBalanceTrend(priorTxns, months),
+    topPayees: computeTopPayees(windowTxns),
   };
 }

@@ -191,6 +191,7 @@ Task shape:
 ### GET /circles/:circleId/wallet/categories → `{ "categories": [WalletCategory] }`
 
 ### GET /circles/:circleId/wallet/transactions → `{ "transactions": [WalletTransaction] }`
+Optional query: `accountId`, `categoryId`, `type`, `search`, `from` (ISO), `to` (ISO).
 
 ### POST /circles/:circleId/wallet/transactions
 ```json
@@ -200,6 +201,7 @@ Task shape:
 ```
 
 ### GET /circles/:circleId/wallet/budgets → `{ "budgets": [Budget] }`
+Optional query: `accountId` (scopes each budget's `spentMinor` to one account).
 
 ### POST /circles/:circleId/wallet/budgets
 ```json
@@ -222,8 +224,23 @@ Task shape:
 ```
 
 ### GET /circles/:circleId/wallet/dashboard
+Optional query: `accountId`, `from` (ISO), `to` (ISO). When omitted, totals cover the current calendar month and all active accounts.
 ```json
 // 200 { "dashboard": {
 //   "totalBalance": 125000, "income": 50000, "expenses": 15000,
 //   "budgetStatus": {...}, "debtsOwedByMe": 0, "debtsOwedToMe": 2500 } }
+```
+
+### GET /circles/:circleId/wallet/analytics
+Aggregated insights for charts. Optional query: `accountId`, `from` (ISO), `to` (ISO). When omitted, the window defaults to the last 6 calendar months. Spending/flow buckets count transactions inside the window; `balanceTrend` is cumulative across all prior transactions.
+```json
+// 200 { "analytics": {
+//   "currency": "USD",
+//   "rangeStart": "2026-01-01T00:00:00.000Z",
+//   "rangeEnd": "2026-07-01T00:00:00.000Z",
+//   "spendingByCategory": [{ "categoryId": "...", "name": "Groceries", "color": "#8fa998", "icon": "shopping_cart", "totalMinor": 42000 }],
+//   "incomeExpenseByMonth": [{ "month": "2026-06", "incomeMinor": 50000, "expenseMinor": 15000, "netMinor": 35000 }],
+//   "balanceTrend": [{ "month": "2026-06", "balanceMinor": 125000 }],
+//   "topPayees": [{ "payee": "SuperMart", "totalMinor": 18000, "count": 4 }]
+// } }
 ```

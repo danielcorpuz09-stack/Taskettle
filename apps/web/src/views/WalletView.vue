@@ -8,6 +8,8 @@ import { apiErrorMessage } from '@/lib/api';
 import { formatMoney } from '@/lib/money';
 import { formatDueLabel } from '@/lib/date';
 import WalletDashboard from '@/components/WalletDashboard.vue';
+import WalletFilters from '@/components/WalletFilters.vue';
+import InsightsPanel from '@/components/InsightsPanel.vue';
 import TransactionModal from '@/components/TransactionModal.vue';
 import BudgetModal from '@/components/BudgetModal.vue';
 import DebtModal from '@/components/DebtModal.vue';
@@ -27,7 +29,7 @@ const showDebt = ref(false);
 const showAccount = ref(false);
 const payingDebt = ref<Debt | null>(null);
 
-type TabId = 'overview' | 'transactions' | 'budgets' | 'debts' | 'accounts';
+type TabId = 'overview' | 'insights' | 'transactions' | 'budgets' | 'debts' | 'accounts';
 const activeTab = ref<TabId>('overview');
 
 const hasCircle = computed(() => Boolean(board.currentCircleId));
@@ -82,7 +84,23 @@ async function loadData(circleId: string) {
       wallet.fetchTransactions(circleId),
       wallet.fetchBudgets(circleId),
       wallet.fetchDebts(circleId),
+      wallet.fetchAnalytics(circleId),
       board.loadBoard(),
+    ]);
+  } catch (err) {
+    error.value = apiErrorMessage(err);
+  }
+}
+
+async function onFiltersChanged() {
+  const id = board.currentCircleId;
+  if (!id) return;
+  try {
+    await Promise.all([
+      wallet.fetchDashboard(id),
+      wallet.fetchTransactions(id),
+      wallet.fetchBudgets(id),
+      wallet.fetchAnalytics(id),
     ]);
   } catch (err) {
     error.value = apiErrorMessage(err);
@@ -168,10 +186,12 @@ function budgetPercent(spent: number, amount: number): number {
           </h1>
         </div>
 
+        <WalletFilters class="mb-stack-sm" @changed="onFiltersChanged" />
+
         <!-- Tabs -->
         <div class="flex gap-1 border-b border-surface-container mb-stack-sm overflow-x-auto">
           <button
-            v-for="tab in (['overview', 'transactions', 'budgets', 'debts', 'accounts'] as TabId[])"
+            v-for="tab in (['overview', 'insights', 'transactions', 'budgets', 'debts', 'accounts'] as TabId[])"
             :key="tab"
             class="px-4 py-2.5 text-label-md font-semibold transition-colors relative capitalize whitespace-nowrap"
             :class="activeTab === tab ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'"
@@ -184,6 +204,9 @@ function budgetPercent(spent: number, amount: number): number {
 
         <!-- Overview -->
         <template v-if="activeTab === 'overview'">
+          <p class="text-body-sm text-on-surface-variant mb-base">
+            Income &amp; spending for {{ wallet.rangeLabel.toLowerCase() }}<template v-if="wallet.selectedAccount"> · {{ wallet.selectedAccount.name }}</template>.
+          </p>
           <WalletDashboard v-if="wallet.dashboard" :dashboard="wallet.dashboard" />
 
           <h2 class="font-label-lg text-label-lg text-on-surface mt-stack-md mb-base">Budgets this period</h2>
@@ -202,6 +225,14 @@ function budgetPercent(spent: number, amount: number): number {
                 />
               </div>
             </div>
+          </div>
+        </template>
+
+        <!-- Insights -->
+        <template v-if="activeTab === 'insights'">
+          <InsightsPanel v-if="wallet.analytics" />
+          <div v-else class="flex items-center justify-center py-stack-lg">
+            <span class="material-symbols-outlined animate-spin !text-[32px] text-on-surface-variant">progress_activity</span>
           </div>
         </template>
 

@@ -217,6 +217,42 @@ export interface WalletDashboard {
   overdueDebtCount: number;
 }
 
+export interface CategorySpend {
+  categoryId: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  totalMinor: number;
+}
+
+export interface MonthlyFlow {
+  month: string; // 'YYYY-MM'
+  incomeMinor: number;
+  expenseMinor: number;
+  netMinor: number;
+}
+
+export interface BalancePoint {
+  month: string; // 'YYYY-MM'
+  balanceMinor: number;
+}
+
+export interface PayeeSpend {
+  payee: string;
+  totalMinor: number;
+  count: number;
+}
+
+export interface WalletAnalytics {
+  currency: string;
+  rangeStart: string;
+  rangeEnd: string;
+  spendingByCategory: CategorySpend[];
+  incomeExpenseByMonth: MonthlyFlow[];
+  balanceTrend: BalancePoint[];
+  topPayees: PayeeSpend[];
+}
+
 // Phase 2: Household Management Interfaces
 
 export interface HomeAsset {

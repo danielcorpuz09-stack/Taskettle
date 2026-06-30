@@ -85,6 +85,19 @@ export const transactionQuerySchema = z.object({
   to: z.string().optional(),
 });
 
+// --- Dashboard & Analytics ---
+export const dashboardQuerySchema = z.object({
+  accountId: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+
+export const analyticsQuerySchema = z.object({
+  accountId: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+
 // --- Budgets ---
 export const createBudgetSchema = z.object({
   name: z.string().trim().min(1, 'is required').max(80),
@@ -147,3 +160,5 @@ export type UpdateBudgetInput = z.infer<typeof updateBudgetSchema>;
 export type CreateDebtInput = z.infer<typeof createDebtSchema>;
 export type UpdateDebtInput = z.infer<typeof updateDebtSchema>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+export type DashboardQueryInput = z.infer<typeof dashboardQuerySchema>;
+export type AnalyticsQueryInput = z.infer<typeof analyticsQuerySchema>;

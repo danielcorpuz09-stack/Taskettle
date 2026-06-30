@@ -3,8 +3,16 @@ import * as wallet from './wallet.service';
 
 // --- Dashboard ---
 export async function dashboard(req: Request, res: Response): Promise<void> {
-  const data = await wallet.getDashboard(req.params.circleId, req.user!.id);
+  const { accountId, from, to } = req.query as Record<string, string | undefined>;
+  const data = await wallet.getDashboard(req.params.circleId, req.user!.id, { accountId, from, to });
   res.status(200).json({ dashboard: data });
+}
+
+// --- Analytics ---
+export async function analytics(req: Request, res: Response): Promise<void> {
+  const { accountId, from, to } = req.query as Record<string, string | undefined>;
+  const data = await wallet.getAnalytics(req.params.circleId, { accountId, from, to });
+  res.status(200).json({ analytics: data });
 }
 
 // --- Accounts ---
@@ -82,7 +90,8 @@ export async function deleteTransaction(req: Request, res: Response): Promise<vo
 
 // --- Budgets ---
 export async function listBudgets(req: Request, res: Response): Promise<void> {
-  const budgets = await wallet.listBudgets(req.params.circleId);
+  const { accountId } = req.query as Record<string, string | undefined>;
+  const budgets = await wallet.listBudgets(req.params.circleId, { accountId });
   res.status(200).json({ budgets });
 }
 
