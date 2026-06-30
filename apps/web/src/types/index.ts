@@ -1,6 +1,7 @@
 export type Role = 'OWNER' | 'MEMBER';
 export type TaskStatus = 'BACKLOG' | 'TODO' | 'DOING' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type TaskRecurrence = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 export type NotificationType = 'DUE_SOON' | 'OVERDUE' | 'DEBT_DUE_SOON' | 'DEBT_OVERDUE';
 export type InventoryStatus = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
 export type ShoppingItemStatus = 'PENDING' | 'PURCHASED';
@@ -15,9 +16,6 @@ export type HomeAssetCategory = 'APPLIANCE' | 'ELECTRONICS' | 'FURNITURE' | 'POW
 export type RecurringExpenseCategory = 'UTILITY' | 'SUBSCRIPTION';
 export type RecurringExpenseFrequency = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
 export type MaintenanceFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'CUSTOM';
-
-// Phase 3: Business Management
-export type BusinessType = 'PRINTING_3D' | 'GENERAL';
 
 export interface User {
   id: string;
@@ -58,11 +56,16 @@ export interface Task {
   category: string | null;
   assignee: TaskAssignee | null;
   dueDate: string | null;
+  endAt: string | null;
+  allDay: boolean;
+  recurrence: TaskRecurrence | null;
+  recurrenceUntil: string | null;
   position: number;
   createdById: string;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  businessRecord?: { id: string; title: string; recordType: string };
 }
 
 export interface Notification {
@@ -86,8 +89,6 @@ export interface InventoryItem {
   location: string | null;
   notes: string | null;
   status: InventoryStatus;
-  unitPriceMinor: number | null;
-  businessId: string | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -151,8 +152,6 @@ export interface WalletTransaction {
   transactionDate: string;
   createdById: string;
   debtId: string | null;
-  businessId: string | null;
-  productId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -215,42 +214,6 @@ export interface WalletDashboard {
   owedByMeMinor: number;
   openDebtCount: number;
   overdueDebtCount: number;
-}
-
-export interface CategorySpend {
-  categoryId: string | null;
-  name: string;
-  color: string;
-  icon: string;
-  totalMinor: number;
-}
-
-export interface MonthlyFlow {
-  month: string; // 'YYYY-MM'
-  incomeMinor: number;
-  expenseMinor: number;
-  netMinor: number;
-}
-
-export interface BalancePoint {
-  month: string; // 'YYYY-MM'
-  balanceMinor: number;
-}
-
-export interface PayeeSpend {
-  payee: string;
-  totalMinor: number;
-  count: number;
-}
-
-export interface WalletAnalytics {
-  currency: string;
-  rangeStart: string;
-  rangeEnd: string;
-  spendingByCategory: CategorySpend[];
-  incomeExpenseByMonth: MonthlyFlow[];
-  balanceTrend: BalancePoint[];
-  topPayees: PayeeSpend[];
 }
 
 // Phase 2: Household Management Interfaces
@@ -319,80 +282,74 @@ export interface MaintenanceSchedule {
 }
 
 // Phase 3: Business Management
+export type BusinessFieldType = 'TEXT' | 'NUMBER' | 'CURRENCY' | 'DATE' | 'SELECT' | 'BOOLEAN' | 'URL';
+export type BusinessRecordType = 'INCOME' | 'EXPENSE' | 'ORDER' | 'SERVICE' | 'RENTAL_PERIOD' | 'OTHER';
 
 export interface Business {
   id: string;
   circleId: string;
   name: string;
-  type: BusinessType;
+  businessType: string;
+  description: string | null;
   currency: string;
-  defaultAccountId: string | null;
-  printerPowerW: number | null;
-  printerPriceMinor: number | null;
-  printerLifespanHr: number | null;
-  electricityRatePerKwhMinor: number | null;
-  laborRatePerHrMinor: number | null;
-  failurePct: number | null;
-  markupPct: number | null;
-  archived: boolean;
+  archivedAt: string | null;
   createdById: string;
   createdAt: string;
-  updatedAt: string;
 }
 
-export interface BusinessDashboard {
-  currency: string;
-  revenueMonthMinor: number;
-  expenseMonthMinor: number;
-  profitMonthMinor: number;
-  revenueTotalMinor: number;
-  expenseTotalMinor: number;
-  profitTotalMinor: number;
-  productCount: number;
-  saleCount: number;
-}
-
-export interface FilamentRow {
-  name?: string;
-  weightG: number;
-  costPerKgMinor: number;
-}
-
-export interface CalculationInput {
-  filaments: FilamentRow[];
-  printTimeHr: number;
-  printerPowerW: number;
-  electricityRatePerKwhMinor: number;
-  printerPriceMinor: number;
-  printerLifespanHr: number;
-  laborRatePerHrMinor: number;
-  laborTimeHr: number;
-  failurePct: number;
-  markupPct: number;
-}
-
-export interface CostBreakdown {
-  materialCostMinor: number;
-  electricityCostMinor: number;
-  wearCostMinor: number;
-  laborCostMinor: number;
-  subtotalMinor: number;
-  failureCostMinor: number;
-  profitMinor: number;
-  finalPriceMinor: number;
-  failurePct: number;
-  markupPct: number;
-}
-
-export interface Product {
+export interface BusinessFieldDef {
   id: string;
   businessId: string;
   name: string;
-  notes: string | null;
-  currency: string;
-  inputs: CalculationInput;
-  breakdown: CostBreakdown;
+  key: string;
+  fieldType: BusinessFieldType;
+  options: string[] | null;
+  unit: string | null;
+  isRequired: boolean;
+  showInAnalytics: boolean;
+  position: number;
+  createdAt: string;
+}
+
+export interface BusinessFieldValue {
+  fieldDefId: string;
+  key: string;
+  fieldType: BusinessFieldType;
+  value: string;
+}
+
+export interface BusinessRecord {
+  id: string;
+  businessId: string;
+  recordType: BusinessRecordType;
+  title: string;
+  amountMinor: number | null;
+  currency: string | null;
+  note: string | null;
+  recordDate: string;
+  walletTransactionId: string | null;
+  taskId: string | null;
   createdById: string;
   createdAt: string;
-  updatedAt: string;
+  fieldValues: BusinessFieldValue[];
+}
+
+export interface BusinessAnalyticsSummary {
+  totalIncomeMinor: number;
+  totalExpenseMinor: number;
+  profitMinor: number;
+  currency: string;
+}
+
+export interface BusinessAnalyticsTimeSeries {
+  period: string;
+  incomeMinor: number;
+  expenseMinor: number;
+}
+
+export interface BusinessAnalytics {
+  summary: BusinessAnalyticsSummary;
+  timeSeries: BusinessAnalyticsTimeSeries[];
+  byRecordType: Record<string, number>;
+  byFieldValue?: Record<string, number>;
 }

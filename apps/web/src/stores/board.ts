@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { api } from '@/lib/api';
-import type { CircleSummary, Member, Task, TaskStatus } from '@/types';
+import type { CircleSummary, Member, Task, TaskStatus, TaskRecurrence } from '@/types';
 
 interface BoardState {
   circles: CircleSummary[];
@@ -77,6 +77,10 @@ export const useBoardStore = defineStore('board', {
       description?: string;
       assigneeId?: string | null;
       dueDate?: string | null;
+      endAt?: string | null;
+      allDay?: boolean;
+      recurrence?: TaskRecurrence | null;
+      recurrenceUntil?: string | null;
       status?: string;
       priority?: string;
       category?: string | null;

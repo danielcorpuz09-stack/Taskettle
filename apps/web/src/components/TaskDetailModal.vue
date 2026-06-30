@@ -3,8 +3,8 @@ import { reactive, ref, watch } from 'vue';
 import BaseModal from './BaseModal.vue';
 import { useBoardStore } from '@/stores/board';
 import { apiErrorMessage } from '@/lib/api';
-import { fromDateTimeLocal, toDateTimeLocal } from '@/lib/date';
-import type { Task, TaskStatus } from '@/types';
+import { toDateInput, timeLabel, isoFromDateAndTime } from '@/lib/date';
+import type { Task, TaskStatus, TaskRecurrence } from '@/types';
 
 const props = defineProps<{ task: Task }>();
 const emit = defineEmits<{ (e: 'close'): void }>();
@@ -18,9 +18,13 @@ const form = reactive({
   description: props.task.description ?? '',
   assigneeId: props.task.assignee?.userId ?? '',
   status: props.task.status as TaskStatus,
-  dueDateLocal: toDateTimeLocal(props.task.dueDate),
+  date: toDateInput(props.task.dueDate),
+  allDay: props.task.allDay,
+  startTime: timeLabel(props.task.dueDate) || '09:00',
+  endTime: timeLabel(props.task.endAt),
   priority: props.task.priority ?? 'MEDIUM',
   category: props.task.category ?? '',
+  recurrence: (props.task.recurrence ?? '') as '' | TaskRecurrence,
 });
 const error = ref('');
 const saving = ref(false);
@@ -33,20 +37,39 @@ watch(
     form.description = t.description ?? '';
     form.assigneeId = t.assignee?.userId ?? '';
     form.status = t.status;
-    form.dueDateLocal = toDateTimeLocal(t.dueDate);
+    form.date = toDateInput(t.dueDate);
+    form.allDay = t.allDay;
+    form.startTime = timeLabel(t.dueDate) || '09:00';
+    form.endTime = timeLabel(t.endAt);
     form.priority = t.priority ?? 'MEDIUM';
     form.category = t.category ?? '';
+    form.recurrence = (t.recurrence ?? '') as '' | TaskRecurrence;
   }
 );
 
 const statuses: { value: TaskStatus; label: string }[] = [
-  { value: 'BACKLOG', label: 'Backlog' },
   { value: 'TODO', label: 'To Do' },
   { value: 'DOING', label: 'Doing' },
   { value: 'DONE', label: 'Done' },
 ];
 
+function computeSchedule(): { dueDate: string | null; endAt: string | null } {
+  if (!form.date) return { dueDate: null, endAt: null };
+  const [y, m, d] = form.date.split('-').map(Number);
+  if (form.allDay) {
+    return { dueDate: isoFromDateAndTime(y, m - 1, d, '09:00'), endAt: null };
+  }
+  const dueDate = isoFromDateAndTime(y, m - 1, d, form.startTime || '09:00');
+  const endAt = form.endTime ? isoFromDateAndTime(y, m - 1, d, form.endTime) : null;
+  return { dueDate, endAt };
+}
+
 async function save() {
+  const { dueDate, endAt } = computeSchedule();
+  if (dueDate && endAt && new Date(endAt) < new Date(dueDate)) {
+    error.value = 'End time must be after the start time.';
+    return;
+  }
   error.value = '';
   saving.value = true;
   try {
@@ -55,7 +78,10 @@ async function save() {
       description: form.description.trim() || null,
       assigneeId: form.assigneeId || null,
       status: form.status,
-      dueDate: fromDateTimeLocal(form.dueDateLocal),
+      dueDate,
+      endAt,
+      allDay: form.allDay,
+      recurrence: form.recurrence || null,
       priority: form.priority,
       category: form.category || null,
     });
@@ -143,11 +169,38 @@ async function remove() {
         </div>
 
         <div class="flex flex-col gap-base">
-          <label class="font-label-md text-label-md text-on-surface" for="d-due">Due date</label>
+          <div class="flex items-center justify-between">
+            <label class="font-label-md text-label-md text-on-surface" for="d-date">When</label>
+            <label class="flex items-center gap-1.5 text-body-sm text-on-surface-variant cursor-pointer select-none">
+              <input v-model="form.allDay" type="checkbox" class="accent-primary" />
+              All-day
+            </label>
+          </div>
           <input
-            id="d-due"
-            v-model="form.dueDateLocal"
-            type="datetime-local"
+            id="d-date"
+            v-model="form.date"
+            type="date"
+            class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+          />
+        </div>
+      </div>
+
+      <div v-if="!form.allDay" class="grid grid-cols-2 gap-stack-sm">
+        <div class="flex flex-col gap-base">
+          <label class="font-label-md text-label-md text-on-surface" for="d-start">Start time</label>
+          <input
+            id="d-start"
+            v-model="form.startTime"
+            type="time"
+            class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+          />
+        </div>
+        <div class="flex flex-col gap-base">
+          <label class="font-label-md text-label-md text-on-surface" for="d-end">End time</label>
+          <input
+            id="d-end"
+            v-model="form.endTime"
+            type="time"
             class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
           />
         </div>
@@ -179,6 +232,20 @@ async function remove() {
             <option v-for="cat in CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
           </select>
         </div>
+      </div>
+
+      <div class="flex flex-col gap-base">
+        <label class="font-label-md text-label-md text-on-surface" for="d-repeat">Repeat</label>
+        <select
+          id="d-repeat"
+          v-model="form.recurrence"
+          class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+        >
+          <option value="">Does not repeat</option>
+          <option value="DAILY">Every day</option>
+          <option value="WEEKLY">Every week</option>
+          <option value="MONTHLY">Every month</option>
+        </select>
       </div>
 
       <div class="flex items-center justify-between gap-stack-sm mt-base">

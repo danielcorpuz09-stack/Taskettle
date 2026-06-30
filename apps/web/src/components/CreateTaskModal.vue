@@ -3,21 +3,52 @@ import { reactive, ref } from 'vue';
 import BaseModal from './BaseModal.vue';
 import { useBoardStore } from '@/stores/board';
 import { apiErrorMessage } from '@/lib/api';
-import { fromDateTimeLocal } from '@/lib/date';
-import type { TaskStatus } from '@/types';
+import { toDateInput, timeLabel, isoFromDateAndTime } from '@/lib/date';
+import type { TaskStatus, TaskRecurrence } from '@/types';
 
-const props = withDefaults(defineProps<{ initialStatus?: TaskStatus }>(), { initialStatus: 'TODO' });
+const props = withDefaults(
+  defineProps<{ initialStatus?: TaskStatus; initialDueDate?: string | null }>(),
+  { initialStatus: 'TODO', initialDueDate: null },
+);
 const board = useBoardStore();
 const emit = defineEmits<{ (e: 'close'): void }>();
 
-const form = reactive({ title: '', description: '', assigneeId: '', dueDateLocal: '', priority: 'MEDIUM', category: '' });
+const hasInitialTime = Boolean(props.initialDueDate) && timeLabel(props.initialDueDate) !== '00:00';
+const form = reactive({
+  title: '',
+  description: '',
+  assigneeId: '',
+  date: toDateInput(props.initialDueDate),
+  allDay: !hasInitialTime,
+  startTime: hasInitialTime ? timeLabel(props.initialDueDate) : '09:00',
+  endTime: '',
+  priority: 'MEDIUM',
+  category: '',
+  recurrence: '' as '' | TaskRecurrence,
+});
 const error = ref('');
 const saving = ref(false);
 
 const CATEGORIES = ['Chores', 'Errands', 'Health', 'School', 'Work', 'Fun', 'Meals', 'Other'];
 
+function computeSchedule(): { dueDate: string | null; endAt: string | null } {
+  if (!form.date) return { dueDate: null, endAt: null };
+  const [y, m, d] = form.date.split('-').map(Number);
+  if (form.allDay) {
+    return { dueDate: isoFromDateAndTime(y, m - 1, d, '09:00'), endAt: null };
+  }
+  const dueDate = isoFromDateAndTime(y, m - 1, d, form.startTime || '09:00');
+  const endAt = form.endTime ? isoFromDateAndTime(y, m - 1, d, form.endTime) : null;
+  return { dueDate, endAt };
+}
+
 async function submit() {
   if (!form.title.trim()) return;
+  const { dueDate, endAt } = computeSchedule();
+  if (dueDate && endAt && new Date(endAt) < new Date(dueDate)) {
+    error.value = 'End time must be after the start time.';
+    return;
+  }
   error.value = '';
   saving.value = true;
   try {
@@ -25,7 +56,10 @@ async function submit() {
       title: form.title.trim(),
       description: form.description.trim() || undefined,
       assigneeId: form.assigneeId || null,
-      dueDate: fromDateTimeLocal(form.dueDateLocal),
+      dueDate,
+      endAt,
+      allDay: form.allDay,
+      recurrence: form.recurrence || null,
       status: props.initialStatus,
       priority: form.priority as any,
       category: form.category || null,
@@ -83,11 +117,38 @@ async function submit() {
         </div>
 
         <div class="flex flex-col gap-base">
-          <label class="font-label-md text-label-md text-on-surface" for="due">Due date</label>
+          <div class="flex items-center justify-between">
+            <label class="font-label-md text-label-md text-on-surface" for="date">When</label>
+            <label class="flex items-center gap-1.5 text-body-sm text-on-surface-variant cursor-pointer select-none">
+              <input v-model="form.allDay" type="checkbox" class="accent-primary" />
+              All-day
+            </label>
+          </div>
           <input
-            id="due"
-            v-model="form.dueDateLocal"
-            type="datetime-local"
+            id="date"
+            v-model="form.date"
+            type="date"
+            class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+          />
+        </div>
+      </div>
+
+      <div v-if="!form.allDay" class="grid grid-cols-2 gap-stack-sm">
+        <div class="flex flex-col gap-base">
+          <label class="font-label-md text-label-md text-on-surface" for="startTime">Start time</label>
+          <input
+            id="startTime"
+            v-model="form.startTime"
+            type="time"
+            class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+          />
+        </div>
+        <div class="flex flex-col gap-base">
+          <label class="font-label-md text-label-md text-on-surface" for="endTime">End time</label>
+          <input
+            id="endTime"
+            v-model="form.endTime"
+            type="time"
             class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
           />
         </div>
@@ -119,6 +180,20 @@ async function submit() {
             <option v-for="cat in CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
           </select>
         </div>
+      </div>
+
+      <div class="flex flex-col gap-base">
+        <label class="font-label-md text-label-md text-on-surface" for="repeat">Repeat</label>
+        <select
+          id="repeat"
+          v-model="form.recurrence"
+          class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+        >
+          <option value="">Does not repeat</option>
+          <option value="DAILY">Every day</option>
+          <option value="WEEKLY">Every week</option>
+          <option value="MONTHLY">Every month</option>
+        </select>
       </div>
 
       <div class="flex gap-stack-sm mt-base">

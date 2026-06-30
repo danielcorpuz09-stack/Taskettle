@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import BoardColumn from '@/components/BoardColumn.vue';
 import CreateTaskModal from '@/components/CreateTaskModal.vue';
 import TaskDetailModal from '@/components/TaskDetailModal.vue';
+import CalendarPanel from '@/components/calendar/CalendarPanel.vue';
 import InviteMemberModal from '@/components/InviteMemberModal.vue';
 import CircleSettingsModal from '@/components/CircleSettingsModal.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
@@ -20,6 +21,7 @@ const notifications = useNotificationStore();
 
 const showCreate = ref(false);
 const createStatus = ref<TaskStatus>('TODO');
+const createDueDate = ref<string | null>(null);
 const showInvite = ref(false);
 const showSettings = ref(false);
 const showNewCircle = ref(false);
@@ -41,15 +43,12 @@ const searchQuery = ref('');
 const filterAssignee = ref<string | ''>('');
 
 // Schedule state
-const today = new Date();
-const currentMonth = ref(today.getMonth());
-const currentYear = ref(today.getFullYear());
 const includedCircleIds = ref<string[]>([]);
 const otherCircleTasks = ref<Task[]>([]);
 const loadingOtherTasks = ref(false);
 
 const columns: { status: TaskStatus; title: string; accent: string }[] = [
-  { status: 'BACKLOG', title: 'Backlog', accent: '#c2b8a3' },
+  { status: 'BACKLOG', title: 'Backlog', accent: '#c4b8a8' },
   { status: 'TODO', title: 'To Do', accent: '#8fa998' },
   { status: 'DOING', title: 'Doing', accent: '#aa9eb5' },
   { status: 'DONE', title: 'Done', accent: '#4c6455' },
@@ -76,10 +75,6 @@ const hasCircle = computed(() => Boolean(board.currentCircleId));
 const hasActiveFilters = computed(() => Boolean(searchQuery.value || filterAssignee.value));
 
 // Schedule computed
-const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const displayMonth = computed(() => `${monthNames[currentMonth.value]} ${currentYear.value}`);
-
 const otherCircles = computed(() => board.circles.filter((c) => c.id !== board.currentCircleId));
 
 const allScheduleTasks = computed(() => {
@@ -88,53 +83,6 @@ const allScheduleTasks = computed(() => {
     base.push(...otherCircleTasks.value);
   }
   return base;
-});
-
-interface CalendarDay {
-  date: number;
-  month: number;
-  year: number;
-  isCurrentMonth: boolean;
-  isToday: boolean;
-  tasks: Task[];
-}
-
-const calendarDays = computed((): CalendarDay[] => {
-  const year = currentYear.value;
-  const month = currentMonth.value;
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-  const days: CalendarDay[] = [];
-
-  for (let i = firstDay - 1; i >= 0; i--) {
-    const d = daysInPrevMonth - i;
-    const m = month === 0 ? 11 : month - 1;
-    const y = month === 0 ? year - 1 : year;
-    days.push({ date: d, month: m, year: y, isCurrentMonth: false, isToday: false, tasks: [] });
-  }
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-    days.push({ date: d, month, year, isCurrentMonth: true, isToday, tasks: [] });
-  }
-
-  const remaining = 42 - days.length;
-  for (let d = 1; d <= remaining; d++) {
-    const m = month === 11 ? 0 : month + 1;
-    const y = month === 11 ? year + 1 : year;
-    days.push({ date: d, month: m, year: y, isCurrentMonth: false, isToday: false, tasks: [] });
-  }
-
-  for (const task of allScheduleTasks.value) {
-    if (!task.dueDate) continue;
-    const due = new Date(task.dueDate);
-    const match = days.find((d) => d.date === due.getDate() && d.month === due.getMonth() && d.year === due.getFullYear());
-    if (match) match.tasks.push(task);
-  }
-
-  return days;
 });
 
 const completedThisWeek = computed(() => {
@@ -159,25 +107,6 @@ const upcomingCount = computed(() => {
     return due >= now && due <= weekEnd;
   }).length;
 });
-
-function taskColor(task: Task): string {
-  if (task.status === 'DONE') return '#b2cdbb';
-  if (task.dueDate && new Date(task.dueDate) < new Date()) return '#fdcbcb';
-  return '#cee9d6';
-}
-
-function prevMonth() {
-  if (currentMonth.value === 0) { currentMonth.value = 11; currentYear.value--; }
-  else currentMonth.value--;
-}
-function nextMonth() {
-  if (currentMonth.value === 11) { currentMonth.value = 0; currentYear.value++; }
-  else currentMonth.value++;
-}
-function goToday() {
-  currentMonth.value = today.getMonth();
-  currentYear.value = today.getFullYear();
-}
 
 async function toggleCircleInclusion(circleId: string) {
   const idx = includedCircleIds.value.indexOf(circleId);
@@ -215,9 +144,32 @@ function openTask(task: Task) {
   selectedTask.value = task;
 }
 
-function openCreate(status: TaskStatus = 'TODO') {
+function openCreateFor(status: TaskStatus) {
   createStatus.value = status;
   showCreate.value = true;
+}
+
+function onCalendarCreate(payload: { iso: string }) {
+  createDueDate.value = payload.iso;
+  showCreate.value = true;
+}
+
+async function onCalendarUpdate(payload: { taskId: string; patch: Record<string, unknown> }) {
+  try {
+    if (payload.patch.__delete) {
+      await board.deleteTask(payload.taskId);
+    } else {
+      await board.updateTask(payload.taskId, payload.patch as any);
+    }
+  } catch (err) {
+    error.value = apiErrorMessage(err, 'Could not update task');
+  }
+}
+
+function closeCreate() {
+  showCreate.value = false;
+  createStatus.value = 'TODO';
+  createDueDate.value = null;
 }
 
 async function onDrop(payload: { taskId: string; status: TaskStatus; newIndex: number }) {
@@ -309,7 +261,7 @@ function closeAvatarMenu() {
           <button
             v-if="hasCircle"
             class="bg-primary text-on-primary px-stack-sm sm:px-stack-md py-2 rounded-full font-label-md flex items-center gap-base hover:opacity-90 active:scale-95 transition-all"
-            @click="openCreate('TODO')"
+            @click="showCreate = true"
           >
             <span class="material-symbols-outlined !text-[20px]">add</span>
             <span class="hidden sm:inline">Create Task</span>
@@ -430,6 +382,14 @@ function closeAvatarMenu() {
           <button
             v-if="hasCircle"
             class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md text-on-surface hover:bg-surface-container transition-colors"
+            @click="router.push({ name: 'business' }); showSidebar = false"
+          >
+            <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">business</span>
+            Businesses
+          </button>
+          <button
+            v-if="hasCircle"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md text-on-surface hover:bg-surface-container transition-colors"
             @click="router.push({ name: 'profile' }); showSidebar = false"
           >
             <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">person</span>
@@ -469,17 +429,6 @@ function closeAvatarMenu() {
           >
             <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">home_repair_service</span>
             Home Maintenance
-          </button>
-
-          <!-- Business Section -->
-          <p class="px-3 pt-3 pb-1 text-label-sm text-on-surface-variant uppercase tracking-wider font-semibold">Business</p>
-          <button
-            v-if="hasCircle"
-            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md text-on-surface hover:bg-surface-container transition-colors"
-            @click="router.push({ name: 'business' }); showSidebar = false"
-          >
-            <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">storefront</span>
-            Business
           </button>
         </div>
 
@@ -750,7 +699,7 @@ function closeAvatarMenu() {
               :tasks="grouped[col.status]"
               @open="openTask"
               @drop="onDrop"
-              @add="openCreate"
+              @add="openCreateFor"
             />
           </div>
         </template>
@@ -758,91 +707,31 @@ function closeAvatarMenu() {
         <!-- Schedule tab content -->
         <template v-if="activeTab === 'schedule'">
           <div class="flex flex-col gap-stack-sm flex-1 min-h-0">
-            <!-- Schedule header -->
+            <!-- Schedule intro + include other circles -->
             <div class="flex items-center justify-between flex-wrap gap-2">
               <p class="text-body-md text-on-surface-variant">Keep track of everyone's rhythm in one place.</p>
-              <div class="flex items-center gap-2">
-                <button class="p-2 rounded-full hover:bg-surface-container transition-colors" @click="prevMonth">
-                  <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">chevron_left</span>
-                </button>
-                <span class="font-label-md text-on-surface min-w-[140px] text-center">{{ displayMonth }}</span>
-                <button class="p-2 rounded-full hover:bg-surface-container transition-colors" @click="nextMonth">
-                  <span class="material-symbols-outlined !text-[20px] text-on-surface-variant">chevron_right</span>
-                </button>
+              <div v-if="otherCircles.length" class="flex flex-wrap items-center gap-2">
+                <span class="text-label-sm text-on-surface-variant">Include:</span>
                 <button
-                  class="ml-2 px-3 py-1.5 rounded-full bg-surface-container text-label-md text-on-surface hover:bg-surface-container-high transition-colors"
-                  @click="goToday"
+                  v-for="c in otherCircles"
+                  :key="c.id"
+                  class="px-3 py-1 rounded-full text-label-sm border transition-all"
+                  :class="includedCircleIds.includes(c.id) ? 'bg-primary-container text-on-primary-container border-primary-container' : 'bg-surface-container text-on-surface-variant border-surface-container hover:border-primary'"
+                  @click="toggleCircleInclusion(c.id)"
                 >
-                  Today
+                  {{ c.name }}
                 </button>
+                <span v-if="loadingOtherTasks" class="material-symbols-outlined animate-spin !text-[16px] text-on-surface-variant">progress_activity</span>
               </div>
             </div>
 
-            <!-- Include other circles -->
-            <div v-if="otherCircles.length" class="flex flex-wrap items-center gap-2">
-              <span class="text-label-sm text-on-surface-variant">Include:</span>
-              <button
-                v-for="c in otherCircles"
-                :key="c.id"
-                class="px-3 py-1 rounded-full text-label-sm border transition-all"
-                :class="includedCircleIds.includes(c.id) ? 'bg-primary-container text-on-primary-container border-primary-container' : 'bg-surface-container text-on-surface-variant border-surface-container hover:border-primary'"
-                @click="toggleCircleInclusion(c.id)"
-              >
-                {{ c.name }}
-              </button>
-              <span v-if="loadingOtherTasks" class="material-symbols-outlined animate-spin !text-[16px] text-on-surface-variant">progress_activity</span>
-            </div>
-
-            <!-- Calendar grid -->
-            <div class="bg-surface-container-lowest rounded-xl border border-surface-container overflow-hidden shadow-sm flex-1">
-              <!-- Day headers -->
-              <div class="grid grid-cols-7 border-b border-surface-container">
-                <div
-                  v-for="day in dayNames"
-                  :key="day"
-                  class="py-3 text-center text-label-md text-on-surface-variant font-semibold"
-                >
-                  {{ day }}
-                </div>
-              </div>
-
-              <!-- Day cells -->
-              <div class="grid grid-cols-7">
-                <div
-                  v-for="(day, idx) in calendarDays"
-                  :key="idx"
-                  class="min-h-[80px] sm:min-h-[100px] p-1.5 border-b border-r border-surface-container relative"
-                  :class="[
-                    !day.isCurrentMonth && 'bg-surface-container/30',
-                    day.isToday && 'ring-2 ring-inset ring-primary/40',
-                  ]"
-                >
-                  <span
-                    class="text-body-sm font-medium"
-                    :class="day.isToday ? 'text-primary font-bold' : day.isCurrentMonth ? 'text-on-surface' : 'text-on-surface-variant/50'"
-                  >
-                    {{ day.date }}
-                    <span v-if="day.isToday" class="text-xs ml-0.5">Today</span>
-                  </span>
-
-                  <div class="mt-1 flex flex-col gap-0.5">
-                    <div
-                      v-for="task in day.tasks.slice(0, 2)"
-                      :key="task.id"
-                      class="text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
-                      :style="{ backgroundColor: taskColor(task) }"
-                      :title="task.title"
-                      @click="openTask(task)"
-                    >
-                      {{ task.title }}
-                    </div>
-                    <span v-if="day.tasks.length > 2" class="text-xs text-on-surface-variant pl-1">
-                      +{{ day.tasks.length - 2 }} more
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <!-- Calendar -->
+            <CalendarPanel
+              :tasks="allScheduleTasks"
+              @open="openTask"
+              @create="onCalendarCreate"
+              @update="onCalendarUpdate"
+            />
 
             <!-- Summary cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-stack-sm mt-stack-sm">
@@ -873,7 +762,7 @@ function closeAvatarMenu() {
     </div>
 
     <!-- Modals -->
-    <CreateTaskModal v-if="showCreate" :initial-status="createStatus" @close="showCreate = false" />
+    <CreateTaskModal v-if="showCreate" :initial-status="createStatus" :initial-due-date="createDueDate" @close="closeCreate" />
     <TaskDetailModal v-if="selectedTask" :task="selectedTask" @close="selectedTask = null" />
     <InviteMemberModal v-if="showInvite" @close="showInvite = false" />
     <CircleSettingsModal v-if="showSettings" @close="showSettings = false" />

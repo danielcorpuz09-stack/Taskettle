@@ -2,14 +2,15 @@ import type { Prisma, Task } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { HttpError } from '../../utils/httpError';
 import { assertMember } from '../circles/circles.service';
-import type { TaskStatus } from '../../types/domain';
-import type { TaskPriority } from '../../types/domain';
+import type { TaskStatus, TaskPriority, TaskRecurrence } from '../../types/domain';
 import type { CreateTaskInput, UpdateTaskInput } from './tasks.schema';
 
 const POSITION_STEP = 1024;
 
 type TaskWithAssignee = Prisma.TaskGetPayload<{
-  include: { assignee: { select: { id: true; name: true; avatarColor: true } } };
+  include: {
+    assignee: { select: { id: true; name: true; avatarColor: true } };
+  };
 }>;
 
 const withAssignee = {
@@ -26,6 +27,10 @@ export interface TaskDto {
   category: string | null;
   assignee: { userId: string; name: string; avatarColor: string } | null;
   dueDate: string | null;
+  endAt: string | null;
+  allDay: boolean;
+  recurrence: TaskRecurrence | null;
+  recurrenceUntil: string | null;
   position: number;
   createdById: string;
   completedAt: string | null;
@@ -60,6 +65,10 @@ export async function createTask(
       description: input.description ?? null,
       assigneeId: input.assigneeId ?? null,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
+      endAt: input.endAt ? new Date(input.endAt) : null,
+      allDay: input.allDay ?? true,
+      recurrence: input.recurrence ?? null,
+      recurrenceUntil: input.recurrenceUntil ? new Date(input.recurrenceUntil) : null,
       status,
       priority: input.priority ?? 'MEDIUM',
       category: input.category ?? null,
@@ -92,6 +101,11 @@ export async function updateTask(
   if (input.priority !== undefined) data.priority = input.priority;
   if (input.category !== undefined) data.category = input.category;
   if (input.dueDate !== undefined) data.dueDate = input.dueDate ? new Date(input.dueDate) : null;
+  if (input.endAt !== undefined) data.endAt = input.endAt ? new Date(input.endAt) : null;
+  if (input.allDay !== undefined) data.allDay = input.allDay;
+  if (input.recurrence !== undefined) data.recurrence = input.recurrence ?? null;
+  if (input.recurrenceUntil !== undefined)
+    data.recurrenceUntil = input.recurrenceUntil ? new Date(input.recurrenceUntil) : null;
   if (input.assigneeId !== undefined) {
     data.assignee = input.assigneeId
       ? { connect: { id: input.assigneeId } }
@@ -148,6 +162,10 @@ export function toTaskDto(task: TaskWithAssignee | Task): TaskDto {
       ? { userId: assignee.id, name: assignee.name, avatarColor: assignee.avatarColor }
       : null,
     dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+    endAt: task.endAt ? task.endAt.toISOString() : null,
+    allDay: task.allDay,
+    recurrence: (task.recurrence as TaskRecurrence | null) ?? null,
+    recurrenceUntil: task.recurrenceUntil ? task.recurrenceUntil.toISOString() : null,
     position: task.position,
     createdById: task.createdById,
     completedAt: task.completedAt ? task.completedAt.toISOString() : null,
