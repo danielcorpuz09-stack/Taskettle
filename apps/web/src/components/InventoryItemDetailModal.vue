@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 import BaseModal from './BaseModal.vue';
 import { useInventoryStore } from '@/stores/inventory';
 import { useBoardStore } from '@/stores/board';
+import { useBusinessStore } from '@/stores/business';
 import { apiErrorMessage } from '@/lib/api';
+import { toMinor } from '@/lib/money';
 import type { InventoryItem } from '@/types';
 
 const props = defineProps<{ item: InventoryItem }>();
@@ -11,8 +13,13 @@ const emit = defineEmits<{ (e: 'close'): void; (e: 'updated'): void }>();
 
 const inventory = useInventoryStore();
 const board = useBoardStore();
+const business = useBusinessStore();
 
 const CATEGORIES = ['Groceries', 'Household', 'Medicine', 'Tools', 'Electronics', 'School Supplies', 'DIY Materials', 'Pet Supplies'];
+
+function majorOf(minor: number | null): string {
+  return minor == null ? '' : (minor / 100).toFixed(2);
+}
 
 const form = reactive({
   name: props.item.name,
@@ -22,11 +29,19 @@ const form = reactive({
   unit: props.item.unit ?? '',
   minimumThreshold: props.item.minimumThreshold,
   location: props.item.location ?? '',
+  unitPrice: majorOf(props.item.unitPriceMinor),
+  businessId: props.item.businessId ?? '',
   notes: props.item.notes ?? '',
 });
 const error = ref('');
 const saving = ref(false);
 const deleting = ref(false);
+
+onMounted(() => {
+  if (board.currentCircleId && business.businesses.length === 0) {
+    business.fetchBusinesses(board.currentCircleId).catch(() => {});
+  }
+});
 
 watch(() => props.item, (i) => {
   form.name = i.name;
@@ -36,6 +51,8 @@ watch(() => props.item, (i) => {
   form.unit = i.unit ?? '';
   form.minimumThreshold = i.minimumThreshold;
   form.location = i.location ?? '';
+  form.unitPrice = majorOf(i.unitPriceMinor);
+  form.businessId = i.businessId ?? '';
   form.notes = i.notes ?? '';
 });
 
@@ -51,6 +68,8 @@ async function save() {
       unit: form.unit.trim() || null,
       minimumThreshold: form.minimumThreshold,
       location: form.location.trim() || null,
+      unitPriceMinor: form.unitPrice ? toMinor(form.unitPrice) : null,
+      businessId: form.businessId || null,
       notes: form.notes.trim() || null,
     } as any);
     emit('updated');
@@ -199,6 +218,32 @@ async function createTask() {
             step="0.1"
             class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
           />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-stack-sm">
+        <div class="flex flex-col gap-base">
+          <label class="font-label-md text-label-md text-on-surface" for="inv-d-price">Unit Price</label>
+          <input
+            id="inv-d-price"
+            v-model="form.unitPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+          />
+        </div>
+
+        <div v-if="business.activeBusinesses.length" class="flex flex-col gap-base">
+          <label class="font-label-md text-label-md text-on-surface" for="inv-d-business">Business</label>
+          <select
+            id="inv-d-business"
+            v-model="form.businessId"
+            class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+          >
+            <option value="">None</option>
+            <option v-for="b in business.activeBusinesses" :key="b.id" :value="b.id">{{ b.name }}</option>
+          </select>
         </div>
       </div>
 

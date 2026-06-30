@@ -29,6 +29,7 @@ datasource db {
 //   RecurringExpenseCategory = 'UTILITY' | 'SUBSCRIPTION'
 //   RecurringExpenseFrequency = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
 //   MaintenanceFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'CUSTOM'
+//   BusinessType         = 'PRINTING_3D' | 'GENERAL'
 // Money is stored as integer minor units (e.g. cents) plus an ISO currency code.
 // Switching to Postgres later, these can be promoted back to real enums.
 
@@ -63,6 +64,9 @@ model User {
   createdRecurringExpenses RecurringExpense[]   @relation("RecurringExpenseCreatedBy")
   createdVehicles          Vehicle[]            @relation("VehicleCreatedBy")
   createdMaintenanceSchedules MaintenanceSchedule[] @relation("MaintenanceScheduleCreatedBy")
+
+  createdBusinesses        Business[]           @relation("BusinessCreatedBy")
+  createdProducts          Product[]            @relation("ProductCreatedBy")
 }
 
 model Circle {
@@ -88,6 +92,7 @@ model Circle {
   recurringExpenses  RecurringExpense[]
   vehicles           Vehicle[]
   maintenanceSchedules MaintenanceSchedule[]
+  businesses         Business[]
 }
 
 model Membership {
@@ -178,16 +183,20 @@ model InventoryItem {
   location         String?
   notes            String?
   status           String   @default("IN_STOCK")
+  unitPriceMinor   Int?
+  businessId       String?
   createdById      String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  createdBy User   @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  circle    Circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  business  Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  createdBy User      @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   shoppingListItems ShoppingListItem[]
 
   @@index([circleId, status])
   @@index([circleId, category])
+  @@index([circleId, businessId])
 }
 
 model ShoppingListItem {
@@ -226,6 +235,7 @@ model WalletAccount {
   circle       Circle              @relation(fields: [circleId], references: [id], onDelete: Cascade)
   owner        User?               @relation("WalletAccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   transactions WalletTransaction[]
+  defaultForBusinesses Business[]  @relation("BusinessDefaultAccount")
 
   @@index([circleId])
 }
@@ -260,6 +270,8 @@ model WalletTransaction {
   transactionDate DateTime @default(now())
   createdById     String
   debtId          String?
+  businessId      String?
+  productId       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -268,11 +280,14 @@ model WalletTransaction {
   category  WalletCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdBy User            @relation("TransactionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   debt      Debt?           @relation(fields: [debtId], references: [id], onDelete: SetNull)
+  business  Business?       @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  product   Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   payment   DebtPayment?
 
   @@index([circleId, transactionDate])
   @@index([circleId, accountId])
   @@index([circleId, categoryId])
+  @@index([circleId, businessId])
 }
 
 model Budget {
@@ -431,4 +446,71 @@ model MaintenanceSchedule {
   createdBy User   @relation("MaintenanceScheduleCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([circleId, nextDueDate])
+}
+
+// --- Business Management (multi-business; first type: 3D printing) ---
+// BusinessType = 'PRINTING_3D' | 'GENERAL'
+// Money is stored as integer minor units (e.g. centavos) plus an ISO currency code.
+model Business {
+  id        String   @id @default(cuid())
+  circleId  String
+  name      String
+  type      String   @default("PRINTING_3D") // PRINTING_3D | GENERAL
+  currency  String   @default("PHP")
+  defaultAccountId String?
+
+  // Calculator default settings (per business; all optional)
+  printerPowerW             Int?   // watts
+  printerPriceMinor         Int?   // purchase price in minor units
+  printerLifespanHr         Int?   // expected machine life in hours
+  electricityRatePerKwhMinor Int?  // grid rate in minor units per kWh
+  laborRatePerHrMinor       Int?   // labor rate in minor units per hour
+  failurePct                Float? // default failure/spoilage rate (0-100)
+  markupPct                 Float? // default profit markup (0-100)
+
+  createdById String
+  archivedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  circle         Circle             @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  createdBy      User               @relation("BusinessCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  defaultAccount WalletAccount?     @relation("BusinessDefaultAccount", fields: [defaultAccountId], references: [id], onDelete: SetNull)
+  products       Product[]
+  transactions   WalletTransaction[]
+  inventoryItems InventoryItem[]
+
+  @@index([circleId])
+}
+
+// A saved cost-calculator output that can be reused and converted into a sale.
+model Product {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String
+  notes       String?
+  currency    String   @default("PHP")
+
+  // Raw calculator inputs (filament rows + parameters) for re-editing.
+  inputs      String   // JSON string
+
+  // Computed breakdown (minor units).
+  materialCostMinor    Int   @default(0)
+  electricityCostMinor Int   @default(0)
+  wearCostMinor        Int   @default(0)
+  laborCostMinor       Int   @default(0)
+  subtotalMinor        Int   @default(0)
+  failurePct           Float @default(0)
+  markupPct            Float @default(0)
+  finalPriceMinor      Int   @default(0)
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business     Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdBy    User                @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@index([businessId])
 }

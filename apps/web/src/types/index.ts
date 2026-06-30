@@ -16,6 +16,9 @@ export type RecurringExpenseCategory = 'UTILITY' | 'SUBSCRIPTION';
 export type RecurringExpenseFrequency = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
 export type MaintenanceFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'CUSTOM';
 
+// Phase 3: Business Management
+export type BusinessType = 'PRINTING_3D' | 'GENERAL';
+
 export interface User {
   id: string;
   name: string;
@@ -83,6 +86,8 @@ export interface InventoryItem {
   location: string | null;
   notes: string | null;
   status: InventoryStatus;
+  unitPriceMinor: number | null;
+  businessId: string | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -146,6 +151,8 @@ export interface WalletTransaction {
   transactionDate: string;
   createdById: string;
   debtId: string | null;
+  businessId: string | null;
+  productId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -270,6 +277,85 @@ export interface MaintenanceSchedule {
   assigneeId: string | null;
   lastTaskId: string | null;
   notes: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Phase 3: Business Management
+
+export interface Business {
+  id: string;
+  circleId: string;
+  name: string;
+  type: BusinessType;
+  currency: string;
+  defaultAccountId: string | null;
+  printerPowerW: number | null;
+  printerPriceMinor: number | null;
+  printerLifespanHr: number | null;
+  electricityRatePerKwhMinor: number | null;
+  laborRatePerHrMinor: number | null;
+  failurePct: number | null;
+  markupPct: number | null;
+  archived: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessDashboard {
+  currency: string;
+  revenueMonthMinor: number;
+  expenseMonthMinor: number;
+  profitMonthMinor: number;
+  revenueTotalMinor: number;
+  expenseTotalMinor: number;
+  profitTotalMinor: number;
+  productCount: number;
+  saleCount: number;
+}
+
+export interface FilamentRow {
+  name?: string;
+  weightG: number;
+  costPerKgMinor: number;
+}
+
+export interface CalculationInput {
+  filaments: FilamentRow[];
+  printTimeHr: number;
+  printerPowerW: number;
+  electricityRatePerKwhMinor: number;
+  printerPriceMinor: number;
+  printerLifespanHr: number;
+  laborRatePerHrMinor: number;
+  laborTimeHr: number;
+  failurePct: number;
+  markupPct: number;
+}
+
+export interface CostBreakdown {
+  materialCostMinor: number;
+  electricityCostMinor: number;
+  wearCostMinor: number;
+  laborCostMinor: number;
+  subtotalMinor: number;
+  failureCostMinor: number;
+  profitMinor: number;
+  finalPriceMinor: number;
+  failurePct: number;
+  markupPct: number;
+}
+
+export interface Product {
+  id: string;
+  businessId: string;
+  name: string;
+  notes: string | null;
+  currency: string;
+  inputs: CalculationInput;
+  breakdown: CostBreakdown;
   createdById: string;
   createdAt: string;
   updatedAt: string;

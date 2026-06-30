@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useBoardStore } from '@/stores/board';
 import { useInventoryStore } from '@/stores/inventory';
+import { useBusinessStore } from '@/stores/business';
 import { apiErrorMessage } from '@/lib/api';
 import InventoryDashboardCards from '@/components/InventoryDashboard.vue';
 import InventoryItemCard from '@/components/InventoryItemCard.vue';
@@ -16,6 +17,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const board = useBoardStore();
 const inventory = useInventoryStore();
+const business = useBusinessStore();
 
 const error = ref('');
 const showCreate = ref(false);
@@ -28,6 +30,10 @@ const hasCircle = computed(() => Boolean(board.currentCircleId));
 
 const CATEGORIES = ['Groceries', 'Household', 'Medicine', 'Tools', 'Electronics', 'School Supplies', 'DIY Materials', 'Pet Supplies'];
 
+const distinctLocations = computed(() =>
+  [...new Set(inventory.items.map((i) => i.location).filter((l): l is string => Boolean(l)))].sort()
+);
+
 watch(() => board.currentCircleId, async (id) => {
   if (id) await loadData(id);
 });
@@ -38,6 +44,7 @@ async function loadData(circleId: string) {
       inventory.fetchItems(circleId),
       inventory.fetchDashboard(circleId),
       inventory.fetchShoppingList(circleId),
+      business.fetchBusinesses(circleId),
     ]);
   } catch (err) {
     error.value = apiErrorMessage(err);
@@ -86,10 +93,22 @@ function applyCategoryFilter(category: string) {
   if (board.currentCircleId) inventory.fetchItems(board.currentCircleId);
 }
 
+function applyLocationFilter(location: string) {
+  inventory.filters.location = location;
+  if (board.currentCircleId) inventory.fetchItems(board.currentCircleId);
+}
+
+function applyBusinessFilter(businessId: string) {
+  inventory.filters.businessId = businessId;
+  if (board.currentCircleId) inventory.fetchItems(board.currentCircleId);
+}
+
 function clearFilters() {
   inventory.filters.status = '';
   inventory.filters.category = '';
   inventory.filters.search = '';
+  inventory.filters.location = '';
+  inventory.filters.businessId = '';
   if (board.currentCircleId) inventory.fetchItems(board.currentCircleId);
 }
 
@@ -216,8 +235,26 @@ function onSearch(q: string) {
               <option value="LOW_STOCK">Low Stock</option>
               <option value="OUT_OF_STOCK">Out of Stock</option>
             </select>
+            <select
+              v-if="distinctLocations.length"
+              :value="inventory.filters.location"
+              class="rounded-full bg-surface-container border border-transparent py-2 px-3 text-body-md text-on-surface focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+              @change="applyLocationFilter(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">All locations</option>
+              <option v-for="loc in distinctLocations" :key="loc" :value="loc">{{ loc }}</option>
+            </select>
+            <select
+              v-if="business.activeBusinesses.length"
+              :value="inventory.filters.businessId"
+              class="rounded-full bg-surface-container border border-transparent py-2 px-3 text-body-md text-on-surface focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+              @change="applyBusinessFilter(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">All businesses</option>
+              <option v-for="b in business.activeBusinesses" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
             <button
-              v-if="inventory.filters.status || inventory.filters.category || inventory.filters.search"
+              v-if="inventory.filters.status || inventory.filters.category || inventory.filters.search || inventory.filters.location || inventory.filters.businessId"
               class="flex items-center gap-1 text-body-sm text-on-surface-variant hover:text-error transition-colors"
               @click="clearFilters"
             >

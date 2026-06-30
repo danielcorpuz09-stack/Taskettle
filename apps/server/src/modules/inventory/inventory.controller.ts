@@ -2,8 +2,14 @@ import type { Request, Response } from 'express';
 import * as inventoryService from './inventory.service';
 
 export async function list(req: Request, res: Response): Promise<void> {
-  const { status, category, search } = req.query as Record<string, string | undefined>;
-  const items = await inventoryService.listItems(req.params.circleId, { status, category, search });
+  const { status, category, search, location, businessId } = req.query as Record<string, string | undefined>;
+  const items = await inventoryService.listItems(req.params.circleId, {
+    status,
+    category,
+    search,
+    location,
+    businessId,
+  });
   res.status(200).json({ items });
 }
 

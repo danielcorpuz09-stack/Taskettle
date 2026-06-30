@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import BaseModal from './BaseModal.vue';
 import { useInventoryStore } from '@/stores/inventory';
 import { useBoardStore } from '@/stores/board';
+import { useBusinessStore } from '@/stores/business';
 import { apiErrorMessage } from '@/lib/api';
+import { toMinor } from '@/lib/money';
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void }>();
 
 const board = useBoardStore();
 const inventory = useInventoryStore();
+const business = useBusinessStore();
 
 const CATEGORIES = ['Groceries', 'Household', 'Medicine', 'Tools', 'Electronics', 'School Supplies', 'DIY Materials', 'Pet Supplies'];
 
@@ -20,10 +23,18 @@ const form = reactive({
   unit: '',
   minimumThreshold: 0,
   location: '',
+  unitPrice: '',
+  businessId: '',
   notes: '',
 });
 const error = ref('');
 const saving = ref(false);
+
+onMounted(() => {
+  if (board.currentCircleId && business.businesses.length === 0) {
+    business.fetchBusinesses(board.currentCircleId).catch(() => {});
+  }
+});
 
 async function submit() {
   if (!form.name.trim()) return;
@@ -38,6 +49,8 @@ async function submit() {
       unit: form.unit.trim() || undefined,
       minimumThreshold: form.minimumThreshold,
       location: form.location.trim() || undefined,
+      unitPriceMinor: form.unitPrice ? toMinor(form.unitPrice) : undefined,
+      businessId: form.businessId || undefined,
       notes: form.notes.trim() || undefined,
     } as any);
     emit('created');
@@ -138,6 +151,33 @@ async function submit() {
             step="0.1"
             class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
           />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-stack-sm">
+        <div class="flex flex-col gap-base">
+          <label class="font-label-md text-label-md text-on-surface" for="inv-price">Unit Price</label>
+          <input
+            id="inv-price"
+            v-model="form.unitPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="e.g. 950.00"
+            class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+          />
+        </div>
+
+        <div v-if="business.activeBusinesses.length" class="flex flex-col gap-base">
+          <label class="font-label-md text-label-md text-on-surface" for="inv-business">Business</label>
+          <select
+            id="inv-business"
+            v-model="form.businessId"
+            class="w-full px-stack-sm py-stack-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-body-md"
+          >
+            <option value="">None</option>
+            <option v-for="b in business.activeBusinesses" :key="b.id" :value="b.id">{{ b.name }}</option>
+          </select>
         </div>
       </div>
 

@@ -55,6 +55,8 @@ export const createTransactionSchema = z.object({
   note: z.string().trim().max(500).nullable().optional(),
   payee: z.string().trim().max(120).nullable().optional(),
   transactionDate: isoDate.optional(),
+  businessId: z.string().min(1).nullable().optional(),
+  productId: z.string().min(1).nullable().optional(),
 });
 
 export const updateTransactionSchema = z
@@ -67,6 +69,8 @@ export const updateTransactionSchema = z
     note: z.string().trim().max(500).nullable().optional(),
     payee: z.string().trim().max(120).nullable().optional(),
     transactionDate: isoDate.optional(),
+    businessId: z.string().min(1).nullable().optional(),
+    productId: z.string().min(1).nullable().optional(),
   })
   .refine((d) => Object.keys(d).length > 0, { message: 'No fields to update' });
 

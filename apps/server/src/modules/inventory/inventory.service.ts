@@ -17,6 +17,8 @@ export interface InventoryItemDto {
   location: string | null;
   notes: string | null;
   status: InventoryStatus;
+  unitPriceMinor: number | null;
+  businessId: string | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +50,8 @@ function toItemDto(item: InventoryItem): InventoryItemDto {
     location: item.location,
     notes: item.notes,
     status: item.status as InventoryStatus,
+    unitPriceMinor: item.unitPriceMinor,
+    businessId: item.businessId,
     createdById: item.createdById,
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
@@ -56,12 +60,14 @@ function toItemDto(item: InventoryItem): InventoryItemDto {
 
 export async function listItems(
   circleId: string,
-  filters?: { status?: string; category?: string; search?: string }
+  filters?: { status?: string; category?: string; search?: string; location?: string; businessId?: string }
 ): Promise<InventoryItemDto[]> {
   const where: Prisma.InventoryItemWhereInput = { circleId };
 
   if (filters?.status) where.status = filters.status;
   if (filters?.category) where.category = filters.category;
+  if (filters?.location) where.location = filters.location;
+  if (filters?.businessId) where.businessId = filters.businessId;
   if (filters?.search) {
     where.name = { contains: filters.search };
   }
@@ -115,6 +121,8 @@ export async function createItem(
       location: input.location ?? null,
       notes: input.notes ?? null,
       status,
+      unitPriceMinor: input.unitPriceMinor ?? null,
+      businessId: input.businessId ?? null,
     },
   });
 
@@ -144,6 +152,10 @@ export async function updateItem(
   if (input.minimumThreshold !== undefined) data.minimumThreshold = input.minimumThreshold;
   if (input.location !== undefined) data.location = input.location;
   if (input.notes !== undefined) data.notes = input.notes;
+  if (input.unitPriceMinor !== undefined) data.unitPriceMinor = input.unitPriceMinor;
+  if (input.businessId !== undefined) {
+    data.business = input.businessId ? { connect: { id: input.businessId } } : { disconnect: true };
+  }
 
   const item = await prisma.inventoryItem.update({ where: { id: itemId }, data });
   return toItemDto(item);

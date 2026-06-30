@@ -61,6 +61,16 @@ const router = createRouter({
       name: 'maintenance',
       component: () => import('@/views/MaintenanceView.vue'),
     },
+    {
+      path: '/business',
+      name: 'business',
+      component: () => import('@/views/BusinessView.vue'),
+    },
+    {
+      path: '/business/:businessId',
+      name: 'business-detail',
+      component: () => import('@/views/BusinessDetailView.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 });

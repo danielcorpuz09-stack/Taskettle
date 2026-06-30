@@ -8,6 +8,7 @@ import { tasksCircleRouter } from '../tasks/tasks.routes';
 import { inventoryCircleRouter } from '../inventory/inventory.routes';
 import { shoppingListCircleRouter } from '../shopping-list/shopping-list.routes';
 import { walletCircleRouter } from '../wallet/wallet.routes';
+import { businessCircleRouter } from '../business/business.routes';
 import * as controller from './circles.controller';
 import { circleIdParam, createCircleSchema, updateCircleSchema, memberParam } from './circles.schema';
 
@@ -65,3 +66,4 @@ circlesRouter.use('/:circleId/tasks', tasksCircleRouter);
 circlesRouter.use('/:circleId/inventory', inventoryCircleRouter);
 circlesRouter.use('/:circleId/shopping-list', shoppingListCircleRouter);
 circlesRouter.use('/:circleId/wallet', walletCircleRouter);
+circlesRouter.use('/:circleId/business', businessCircleRouter);

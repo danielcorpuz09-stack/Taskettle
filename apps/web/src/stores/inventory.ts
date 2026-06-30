@@ -11,6 +11,8 @@ interface InventoryState {
     status: string;
     category: string;
     search: string;
+    location: string;
+    businessId: string;
   };
 }
 
@@ -20,7 +22,7 @@ export const useInventoryStore = defineStore('inventory', {
     shoppingList: [],
     dashboard: null,
     loading: false,
-    filters: { status: '', category: '', search: '' },
+    filters: { status: '', category: '', search: '', location: '', businessId: '' },
   }),
 
   getters: {
@@ -38,6 +40,8 @@ export const useInventoryStore = defineStore('inventory', {
         if (this.filters.status) params.status = this.filters.status;
         if (this.filters.category) params.category = this.filters.category;
         if (this.filters.search) params.search = this.filters.search;
+        if (this.filters.location) params.location = this.filters.location;
+        if (this.filters.businessId) params.businessId = this.filters.businessId;
 
         const { data } = await api.get<{ items: InventoryItem[] }>(
           `/circles/${circleId}/inventory`,

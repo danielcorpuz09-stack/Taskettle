@@ -19,3 +19,6 @@ export type HomeAssetCategory = 'APPLIANCE' | 'ELECTRONICS' | 'FURNITURE' | 'POW
 export type RecurringExpenseCategory = 'UTILITY' | 'SUBSCRIPTION';
 export type RecurringExpenseFrequency = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
 export type MaintenanceFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL' | 'CUSTOM';
+
+// Phase 3: Business Management
+export type BusinessType = 'PRINTING_3D' | 'GENERAL';

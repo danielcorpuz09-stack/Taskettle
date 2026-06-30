@@ -11,6 +11,8 @@ export const createInventoryItemSchema = z.object({
   minimumThreshold: z.number().finite().min(0).optional(),
   location: z.string().trim().max(100).nullable().optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
+  unitPriceMinor: z.number().int().min(0).nullable().optional(),
+  businessId: z.string().min(1).nullable().optional(),
 });
 
 export const updateInventoryItemSchema = z
@@ -23,6 +25,8 @@ export const updateInventoryItemSchema = z
     minimumThreshold: z.number().finite().min(0).optional(),
     location: z.string().trim().max(100).nullable().optional(),
     notes: z.string().trim().max(2000).nullable().optional(),
+    unitPriceMinor: z.number().int().min(0).nullable().optional(),
+    businessId: z.string().min(1).nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'No fields to update' });
 
@@ -32,6 +36,8 @@ export const inventoryQuerySchema = z.object({
   status: inventoryStatus.optional(),
   category: z.string().optional(),
   search: z.string().optional(),
+  location: z.string().optional(),
+  businessId: z.string().optional(),
 });
 
 export const createTaskFromItemSchema = z.object({

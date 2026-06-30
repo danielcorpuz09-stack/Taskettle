@@ -16,6 +16,7 @@ import assetsRouter from './modules/assets/assets.routes';
 import recurringExpensesRouter from './modules/recurring-expenses/recurring-expenses.routes';
 import vehiclesRouter from './modules/vehicles/vehicles.routes';
 import maintenanceRouter from './modules/maintenance/maintenance.routes';
+import { businessRouter } from './modules/business/business.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -48,6 +49,9 @@ export function createApp(): Express {
   app.use('/api/recurring-expenses', recurringExpensesRouter);
   app.use('/api/vehicles', vehiclesRouter);
   app.use('/api/maintenance', maintenanceRouter);
+
+  // Phase 3: Business Management
+  app.use('/api/business', businessRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

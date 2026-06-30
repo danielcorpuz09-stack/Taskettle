@@ -67,6 +67,8 @@ export interface WalletTransactionDto {
   transactionDate: string;
   createdById: string;
   debtId: string | null;
+  businessId: string | null;
+  productId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -173,6 +175,8 @@ function toTransactionDto(t: WalletTransaction): WalletTransactionDto {
     transactionDate: t.transactionDate.toISOString(),
     createdById: t.createdById,
     debtId: t.debtId,
+    businessId: t.businessId,
+    productId: t.productId,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };
@@ -390,6 +394,8 @@ export async function createTransaction(
       note: input.note ?? null,
       payee: input.payee ?? null,
       transactionDate: input.transactionDate ? new Date(input.transactionDate) : new Date(),
+      businessId: input.businessId ?? null,
+      productId: input.productId ?? null,
     },
   });
   return toTransactionDto(transaction);
@@ -417,6 +423,12 @@ export async function updateTransaction(
   if (input.note !== undefined) data.note = input.note;
   if (input.payee !== undefined) data.payee = input.payee;
   if (input.transactionDate !== undefined) data.transactionDate = new Date(input.transactionDate);
+  if (input.businessId !== undefined) {
+    data.business = input.businessId ? { connect: { id: input.businessId } } : { disconnect: true };
+  }
+  if (input.productId !== undefined) {
+    data.product = input.productId ? { connect: { id: input.productId } } : { disconnect: true };
+  }
 
   const transaction = await prisma.walletTransaction.update({ where: { id: transactionId }, data });
   return toTransactionDto(transaction);
